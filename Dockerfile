@@ -25,7 +25,7 @@ RUN arch="$(dpkg --print-architecture)" \
     && rm -f /tmp/miniforge.sh \
     && conda config --system --add channels conda-forge \
     && conda config --system --set channel_priority strict \
-    && conda install -y "python=${PYTHON_VERSION}" pip pytao bmad \
+    && conda install -y "python=${PYTHON_VERSION}" pip pytao bmad epics-base \
     && patchelf --clear-execstack /opt/conda/lib/libtao.so \
     && conda clean -afy
 
@@ -49,4 +49,4 @@ RUN git clone https://github.com/pluflou/virtual-accelerator.git /opt/virtual-ac
 EXPOSE 2718 2719
 
 ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]
-CMD ["lume-live-monitor", "--host", "0.0.0.0", "--port", "2719", "--headless"]
+CMD ["python", "-m", "marimo", "run", "/app/lume_visualizations/live_stream_monitor.py", "--host", "0.0.0.0", "--port", "2719", "--no-token"]

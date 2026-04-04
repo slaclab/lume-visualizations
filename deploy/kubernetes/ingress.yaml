@@ -9,50 +9,25 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
     nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2 
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
   - host: "ard-modeling-service.slac.stanford.edu"
     http:
       paths:
-        - path: /quad-scan
-          pathType: Prefix
+        - path: /quad-scan(/|$)(.*)
+          pathType: ImplementationSpecific
           backend:
             service:
               name: lume-quad-scan
               port:
                 number: 80
-        - path: /live-monitor
-          pathType: Prefix
+        - path: /live-monitor(/|$)(.*)
+          pathType: ImplementationSpecific
           backend:
             service:
               name: lume-live-monitor
               port:
                 number: 80
-
-# apiVersion: networking.k8s.io/v1
-# kind: Ingress
-# metadata:
-#   name: lume-visualizations
-#   namespace: lume-visualizations
-# spec:
-#   ingressClassName: nginx
-#   rules:
-#     - host: lume-visualizations.example.org
-#       http:
-#         paths:
-#           - path: /quad-scan
-#             pathType: Prefix
-#             backend:
-#               service:
-#                 name: lume-quad-scan
-#                 port:
-#                   number: 80
-#           - path: /live-monitor
-#             pathType: Prefix
-#             backend:
-#               service:
-#                 name: lume-live-monitor
-#                 port:
-#                   number: 80

@@ -7,3 +7,35 @@ resources:
   - quad-scan.yaml
   - live-monitor.yaml
   - ingress.yaml
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: lume-quad-scan
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value:
+          - lume-quad-scan
+          - --host
+          - 0.0.0.0
+          - --port
+          - "2718"
+          - --headless
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: lume-live-monitor
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value:
+          - lume-live-monitor
+          - --host
+          - 0.0.0.0
+          - --port
+          - "2719"
+          - --headless
