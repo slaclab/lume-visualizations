@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lume-visualizations-config
+  namespace: lume-visualizations
+data:
+  LCLS_LATTICE: /opt/lcls-lattice

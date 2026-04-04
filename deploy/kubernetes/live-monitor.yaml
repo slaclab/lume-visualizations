@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lume-live-monitor
+  namespace: lume-visualizations
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lume-live-monitor
+  template:
+    metadata:
+      labels:
+        app: lume-live-monitor
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/slaclab/lume-visualizations:latest
+          args:
+            - lume-live-monitor
+            - --host
+            - 0.0.0.0
+            - --port
+            - "2719"
+            - --base-url
+            - /live-monitor
+            - --headless
+          envFrom:
+            - configMapRef:
+                name: lume-visualizations-config
+          ports:
+            - containerPort: 2719
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lume-live-monitor
+  namespace: lume-visualizations
+spec:
+  selector:
+    app: lume-live-monitor
+  ports:
+    - name: http
+      port: 80
+      targetPort: 2719

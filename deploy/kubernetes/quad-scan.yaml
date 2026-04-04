@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lume-quad-scan
+  namespace: lume-visualizations
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lume-quad-scan
+  template:
+    metadata:
+      labels:
+        app: lume-quad-scan
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/slaclab/lume-visualizations:latest
+          args:
+            - lume-quad-scan
+            - --host
+            - 0.0.0.0
+            - --port
+            - "2718"
+            - --base-url
+            - /quad-scan
+            - --headless
+          envFrom:
+            - configMapRef:
+                name: lume-visualizations-config
+          ports:
+            - containerPort: 2718
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lume-quad-scan
+  namespace: lume-visualizations
+spec:
+  selector:
+    app: lume-quad-scan
+  ports:
+    - name: http
+      port: 80
+      targetPort: 2718
