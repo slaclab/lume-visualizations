@@ -20,9 +20,8 @@ fi
 
 trap cleanup EXIT INT TERM
 
-"$@" &
-app_pid="$!"
-wait "${app_pid}"
+set +e
+"$@"
 app_status="$?"
-cleanup
+set -e
 exit "${app_status}"

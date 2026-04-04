@@ -11,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     LCLS_LATTICE=/opt/lcls-lattice
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends bash bzip2 curl git \
+    && apt-get install -y --no-install-recommends bash bzip2 curl git patchelf \
     && rm -rf /var/lib/apt/lists/*
 
 RUN arch="$(dpkg --print-architecture)" \
@@ -26,6 +26,7 @@ RUN arch="$(dpkg --print-architecture)" \
     && conda config --system --add channels conda-forge \
     && conda config --system --set channel_priority strict \
     && conda install -y "python=${PYTHON_VERSION}" pip pytao bmad \
+    && patchelf --clear-execstack /opt/conda/lib/libtao.so \
     && conda clean -afy
 
 WORKDIR /app
@@ -40,7 +41,8 @@ RUN git clone https://github.com/slaclab/lcls-lattice.git /opt/lcls-lattice \
 
 RUN git clone https://github.com/pluflou/virtual-accelerator.git /opt/virtual-accelerator \
     && cd /opt/virtual-accelerator \
-    && python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install --upgrade setuptools wheel \
+    && python -m pip install --upgrade --index-url https://download.pytorch.org/whl/cpu torch \
     && python -m pip install -e . \
     && python -m pip install /app
 
