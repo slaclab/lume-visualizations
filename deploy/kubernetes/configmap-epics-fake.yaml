@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # EPICS network config — fake in-pod IOC mode.
+  # The entrypoint starts the caproto fake IOC on 127.0.0.1 and the CA
+  # client is pointed at it.  Use this ConfigMap for local / staging pods
+  # that should NOT connect to the real facility EPICS network.
+  #
+  # To switch, change the configmap-epics-*.yaml resource in kustomization.yaml.
+  name: lume-epics-config
+  namespace: lume-visualizations
+data:
+  # Start the built-in fake EPICS IOC alongside the marimo app.
+  LUME_START_FAKE_EPICS: "1"
+  LUME_FAKE_EPICS_UPDATE_PERIOD: "0.5"
+  # CA client: connect only to the in-pod loopback address.
+  EPICS_CA_AUTO_ADDR_LIST: "NO"
+  EPICS_CA_ADDR_LIST: "127.0.0.1"

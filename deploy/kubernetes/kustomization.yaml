@@ -4,9 +4,21 @@ namespace: lume-visualizations
 resources:
   - namespace.yaml
   - configmap.yaml
+  # EPICS mode: include ONE of the two configmap-epics-*.yaml files below.
+  # - configmap-epics-fake.yaml   → in-pod fake IOC (local/staging)
+  # - configmap-epics-real.yaml   → real facility CA gateway (production)
+  - configmap-epics-fake.yaml
   - quad-scan.yaml
   - live-monitor.yaml
   - ingress.yaml
+  - quad-scan-ingress.yaml
+
+configMapGenerator:
+  - name: lume-live-monitor-ui
+    files:
+      - live-monitor-ui/live_stream_monitor.py
+      - live-monitor-ui/live_stream_monitor.css
+      - live-monitor-ui/live_stream_monitor.head.html
 
 patches:
   - target:
@@ -33,9 +45,15 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/args
         value:
-          - lume-live-monitor
+          - python
+          - -m
+          - marimo
+          - run
+          - /app/lume_visualizations/live_stream_monitor.py
           - --host
           - 0.0.0.0
           - --port
           - "2719"
-          - --headless
+          - --base-url
+          - /live-monitor
+          - --no-token

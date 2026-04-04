@@ -17,20 +17,40 @@ spec:
         - name: app
           image: ghcr.io/slaclab/lume-visualizations:latest
           args:
-            - lume-live-monitor
+            - python
+            - -m
+            - marimo
+            - run
+            - /app/lume_visualizations/live_stream_monitor.py
             - --host
             - 0.0.0.0
             - --port
             - "2719"
             - --base-url
             - /live-monitor
-            - --headless
+            - --no-token
           envFrom:
             - configMapRef:
                 name: lume-visualizations-config
+            - configMapRef:
+                name: lume-epics-config
+          volumeMounts:
+            - name: live-monitor-ui
+              mountPath: /app/lume_visualizations/live_stream_monitor.py
+              subPath: live_stream_monitor.py
+            - name: live-monitor-ui
+              mountPath: /app/lume_visualizations/live_stream_monitor.css
+              subPath: live_stream_monitor.css
+            - name: live-monitor-ui
+              mountPath: /app/lume_visualizations/live_stream_monitor.head.html
+              subPath: live_stream_monitor.head.html
           ports:
             - containerPort: 2719
               name: http
+      volumes:
+        - name: live-monitor-ui
+          configMap:
+            name: lume-live-monitor-ui
 ---
 apiVersion: v1
 kind: Service

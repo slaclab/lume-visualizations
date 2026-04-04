@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.12
 ARG LCLS_LATTICE_REF=52ad1a5ddd00aa57a89a4fc7f2fa1a2363216ae8
 ARG DOCKER_PLATFORM=linux/amd64
 
@@ -7,7 +7,7 @@ FROM --platform=${DOCKER_PLATFORM} python:${PYTHON_VERSION}-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PATH=/opt/conda/bin:$PATH \
+    PATH=/opt/conda/epics/bin/linux-x86_64:/opt/conda/bin:$PATH \
     LCLS_LATTICE=/opt/lcls-lattice
 
 RUN apt-get update \
@@ -49,4 +49,4 @@ RUN git clone https://github.com/pluflou/virtual-accelerator.git /opt/virtual-ac
 EXPOSE 2718 2719
 
 ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]
-CMD ["python", "-m", "marimo", "run", "/app/lume_visualizations/live_stream_monitor.py", "--host", "0.0.0.0", "--port", "2719", "--no-token"]
+CMD ["python", "-m", "marimo", "edit", "/app/lume_visualizations/live_stream_monitor.py", "--host", "0.0.0.0", "--port", "2719", "--no-token"]
