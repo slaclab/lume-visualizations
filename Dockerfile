@@ -49,4 +49,4 @@ RUN git clone https://github.com/pluflou/virtual-accelerator.git /opt/virtual-ac
 EXPOSE 2718 2719
 
 ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]
-CMD ["python", "-m", "marimo", "edit", "/app/lume_visualizations/live_stream_monitor.py", "--host", "0.0.0.0", "--port", "2719", "--no-token"]
+CMD ["python", "-m", "marimo", "run", "/app/lume_visualizations/live_stream_monitor.py", "--host", "0.0.0.0", "--port", "2719", "--no-token"]
