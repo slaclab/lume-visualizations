@@ -25,7 +25,7 @@ RUN arch="$(dpkg --print-architecture)" \
     && rm -f /tmp/miniforge.sh \
     && conda config --system --add channels conda-forge \
     && conda config --system --set channel_priority strict \
-    && conda install -y "python=${PYTHON_VERSION}" pip pytao bmad epics-base \
+    && conda install -y "python=${PYTHON_VERSION}" pip bmad pytao epics-base \
     && patchelf --clear-execstack /opt/conda/lib/libtao.so \
     && conda clean -afy
 
