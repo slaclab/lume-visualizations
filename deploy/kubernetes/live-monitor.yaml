@@ -16,6 +16,12 @@ spec:
       containers:
         - name: app
           image: ghcr.io/slaclab/lume-visualizations:latest
+          imagePullPolicy: Always
+          restartPolicy: Always
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
           args:
             - python
             - -m
@@ -29,6 +35,8 @@ spec:
             - --base-url
             - /live-monitor
             - --no-token
+            - --allow-origins
+            - https://ard-modeling-service.slac.stanford.edu
           envFrom:
             - configMapRef:
                 name: lume-visualizations-config

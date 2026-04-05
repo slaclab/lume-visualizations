@@ -57,3 +57,5 @@ patches:
           - --base-url
           - /live-monitor
           - --no-token
+          - --allow-origins
+          - https://ard-modeling-service.slac.stanford.edu

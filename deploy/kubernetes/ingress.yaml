@@ -9,15 +9,8 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
     nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
-    # WebSocket support required for marimo run-mode reactive updates over HTTPS.
-    # proxy-http-version must be 1.1 for the Upgrade handshake; the
-    # configuration-snippet forwards the Upgrade/Connection headers.
-    # Note: configuration-snippet requires allow-snippet-annotations: "true"
-    # in the ingress-nginx controller ConfigMap (disabled in some hardened clusters).
-    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_set_header Upgrade $http_upgrade;
-      proxy_set_header Connection "Upgrade";
+    # WebSocket support: nginx-ingress handles Upgrade/Connection headers
+    # automatically via its built-in $http_upgrade / $connection_upgrade map.
 spec:
   ingressClassName: nginx
   rules:
