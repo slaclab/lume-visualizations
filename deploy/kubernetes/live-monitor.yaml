@@ -146,18 +146,29 @@ spec:
             - name: live-monitor-ui
               mountPath: /app/lume_visualizations/live_stream_monitor.head.html
               subPath: live_stream_monitor.head.html
+          startupProbe:
+            httpGet:
+              path: /live-monitor/health
+              port: 2719
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             httpGet:
-              path: /live-monitor/
+              path: /live-monitor/health
               port: 2719
-            initialDelaySeconds: 15
+            initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: /live-monitor/
+              path: /live-monitor/health
               port: 2719
-            initialDelaySeconds: 30
+            initialDelaySeconds: 0
             periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
           ports:
             - containerPort: 2719
               name: http
