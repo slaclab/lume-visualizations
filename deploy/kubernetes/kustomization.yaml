@@ -13,6 +13,10 @@ resources:
   - ingress.yaml
   - quad-scan-ingress.yaml
 
+images:
+  - name: ghcr.io/slaclab/lume-visualizations
+    newTag: pool
+
 configMapGenerator:
   - name: lume-live-monitor-ui
     files:
