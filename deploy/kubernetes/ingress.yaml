@@ -11,24 +11,56 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
     # WebSocket support: nginx-ingress handles Upgrade/Connection headers
     # automatically via its built-in $http_upgrade / $connection_upgrade map.
-    # Session affinity: stick each browser to the same worker pod so marimo
-    # sessions survive across HTTP and WebSocket requests.
-    nginx.ingress.kubernetes.io/affinity: "cookie"
-    nginx.ingress.kubernetes.io/session-cookie-name: "LUME_WORKER"
-    nginx.ingress.kubernetes.io/session-cookie-expires: "3600"
-    nginx.ingress.kubernetes.io/session-cookie-max-age: "3600"
-    nginx.ingress.kubernetes.io/session-cookie-path: "/live-monitor"
-    nginx.ingress.kubernetes.io/session-cookie-change-on-failure: "true"
+    # Routing: per-worker paths (/live-monitor/wN) go directly to each
+    # worker pod.  The base path (/live-monitor) goes to the allocator which
+    # redirects to an available worker.
 spec:
   ingressClassName: nginx
   rules:
   - host: "ard-modeling-service.slac.stanford.edu"
     http:
       paths:
+        # Per-worker paths — longest prefix matches first in nginx.
+        - path: /live-monitor/w0
+          pathType: Prefix
+          backend:
+            service:
+              name: lume-live-monitor-w0
+              port:
+                number: 80
+        - path: /live-monitor/w1
+          pathType: Prefix
+          backend:
+            service:
+              name: lume-live-monitor-w1
+              port:
+                number: 80
+        - path: /live-monitor/w2
+          pathType: Prefix
+          backend:
+            service:
+              name: lume-live-monitor-w2
+              port:
+                number: 80
+        - path: /live-monitor/w3
+          pathType: Prefix
+          backend:
+            service:
+              name: lume-live-monitor-w3
+              port:
+                number: 80
+        - path: /live-monitor/w4
+          pathType: Prefix
+          backend:
+            service:
+              name: lume-live-monitor-w4
+              port:
+                number: 80
+        # Catch-all — allocator redirects to a free worker.
         - path: /live-monitor
           pathType: Prefix
           backend:
             service:
-              name: lume-live-monitor
+              name: lume-live-monitor-allocator
               port:
                 number: 80
