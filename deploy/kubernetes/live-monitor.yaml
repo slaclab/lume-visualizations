@@ -1,68 +1,6 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: lume-live-monitor
-  namespace: lume-visualizations
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: lume-live-monitor
-  template:
-    metadata:
-      labels:
-        app: lume-live-monitor
-    spec:
-      restartPolicy: Always
-      containers:
-        - name: proxy
-          image: ghcr.io/slaclab/lume-visualizations:latest
-          imagePullPolicy: Always
-          resources:
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
-          args:
-            - python
-            - -m
-            - lume_visualizations.live_monitor_pool
-            - --host
-            - 0.0.0.0
-            - --port
-            - "2719"
-          env:
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: LUME_BASE_URL
-              value: /live-monitor
-            - name: LUME_WORKER_COUNT
-              value: "5"
-            - name: LUME_WORKER_STATEFULSET
-              value: lume-live-monitor-worker
-            - name: LUME_WORKER_HEADLESS_SERVICE
-              value: lume-live-monitor-worker
-            - name: LUME_WORKER_PORT
-              value: "2719"
-            - name: LUME_SESSION_TIMEOUT_SECONDS
-              value: "3600"
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: 2719
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 2719
-            initialDelaySeconds: 15
-            periodSeconds: 20
-          ports:
-            - containerPort: 2719
-              name: http
----
+# The ingress routes directly to the worker pods via this Service.
+# Session affinity is handled by nginx-ingress cookie annotations on the
+# Ingress resource, so no custom proxy is needed.
 apiVersion: v1
 kind: Service
 metadata:
@@ -70,7 +8,7 @@ metadata:
   namespace: lume-visualizations
 spec:
   selector:
-    app: lume-live-monitor
+    app: lume-live-monitor-worker
   ports:
     - name: http
       port: 80
