@@ -10,8 +10,6 @@ Run with:
 
 import marimo
 
-from lume_visualizations.beam_monitor import ModelImageSource
-
 __generated_with = "0.22.0"
 
 app = marimo.App(
