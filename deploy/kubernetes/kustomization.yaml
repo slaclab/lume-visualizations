@@ -5,8 +5,8 @@ resources:
   - namespace.yaml
   - configmap.yaml
   # EPICS mode: include ONE of the two configmap-epics-*.yaml files below.
-  # - configmap-epics-fake.yaml   → in-pod fake IOC (local/staging)
-  # - configmap-epics-real.yaml   → real facility CA gateway (production)
+  # - configmap-epics-fake.yaml   # for in-pod fake IOC (local/staging)
+  # - configmap-epics-real.yaml   # for LCLS CA gateway (production)
   - configmap-epics-real.yaml
   - quad-scan.yaml
   - live-monitor.yaml
