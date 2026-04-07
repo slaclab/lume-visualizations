@@ -250,13 +250,16 @@ def interactive_slider_controls(
     current_row = []
     for index, pv_name in enumerate(MANUAL_INPUT_PVS):
         spec = slider_specs[pv_name]
-        slider = mo.ui.number(
+        _range = float(spec.maximum) - float(spec.minimum)
+        _step = max(round(_range / 1000, 3), 0.001)
+        slider = mo.ui.slider(
             start=float(spec.minimum),
             stop=float(spec.maximum),
-            step=1e-6,
-            value=float(_display_vals.get(pv_name, initial_inputs[pv_name])),
+            step=_step,
+            value=round(float(_display_vals.get(pv_name, initial_inputs[pv_name])), 3),
             label=slider_labels.get(pv_name, pv_name),
             full_width=False,
+            show_value=True,
             on_change=lambda v: set_interactive_eval_trigger(lambda x: x + 1),
         )
         interactive_sliders[pv_name] = slider
@@ -507,12 +510,10 @@ def interactive_eval(
     eval_idx = interactive_eval_trigger()
     screen = interactive_screen_dropdown.value
     interactive_screen_config = SCREEN_CONFIGS[screen]
-    print(f"[interactive_eval] triggered \u2014 eval_idx={eval_idx}, screen={screen}, dashboard_screen={interactive_dashboard.screen_label}, history_len={len(interactive_dashboard.history_data['x'])}")
 
     # Reset (clearing history) when screen changes or on the very first eval.
     if (interactive_dashboard.screen_label != screen
             or not interactive_dashboard.history_data["x"]):
-        print(f"[interactive_eval] resetting for screen={screen}")
         interactive_dashboard.reset(
             interactive_screen_config.label,
             "Eval #",
@@ -562,7 +563,7 @@ def apply_machine_values(
     try:
         live_values = provider.read_inputs(model_input_names)
         new_display = {
-            pv: float(live_values[pv]) for pv in MANUAL_INPUT_PVS if pv in live_values
+            pv: round(float(live_values[pv]), 3) for pv in MANUAL_INPUT_PVS if pv in live_values
         }
         set_slider_display_values(new_display)
         set_interactive_eval_trigger(lambda x: x + 1)
