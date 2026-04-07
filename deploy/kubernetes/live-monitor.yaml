@@ -1,4 +1,27 @@
 # ---------------------------------------------------------------------------
+# Live Monitor — allocator + per-worker routing
+# ---------------------------------------------------------------------------
+#
+# CHANGING THE NUMBER OF WORKERS
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# The worker count is currently set to 5.  To change it (e.g. to 3 or 8):
+#
+#   1. In THIS FILE:
+#      a. Change the allocator env var LUME_WORKER_COUNT to the new number.
+#      b. Change the StatefulSet `replicas:` to the same number.
+#      c. Add or remove per-pod Service blocks (lume-live-monitor-wN).
+#         Each block selects `statefulset.kubernetes.io/pod-name:
+#         lume-live-monitor-worker-N`.
+#
+#   2. In ingress.yaml:
+#      Add or remove the `/live-monitor/wN` path entries to match.
+#
+#   3. Apply:
+#         cd deploy/kubernetes && kubectl apply -k .
+#      Then delete any orphaned per-pod Services for removed workers:
+#         kubectl delete svc -n lume-visualizations lume-live-monitor-wN
+#
+# ---------------------------------------------------------------------------
 # Allocator — lightweight redirect service that assigns each browser to a
 # free worker pod (/live-monitor/ → /live-monitor/wN/).
 # ---------------------------------------------------------------------------
@@ -33,7 +56,7 @@ spec:
             - name: LUME_WORKER_COUNT
               value: "5"
             - name: LUME_SESSION_TIMEOUT_SECONDS
-              value: "3600"
+              value: "300"
           readinessProbe:
             httpGet:
               path: /healthz
@@ -186,7 +209,23 @@ spec:
           resources:
             limits:
               memory: "2Gi"
+              cpu: "2000m"
+            requests:
               cpu: "1000m"
+          env:
+            # The container sees all host CPUs but is cgroup-limited.
+            # Pin threading libraries to match the actual CPU allocation
+            # to avoid massive contention (32 threads on 2 cores).
+            - name: OMP_NUM_THREADS
+              value: "2"
+            - name: MKL_NUM_THREADS
+              value: "2"
+            - name: OPENBLAS_NUM_THREADS
+              value: "2"
+            - name: TORCH_NUM_THREADS
+              value: "2"
+            - name: TZ
+              value: "US/Pacific"
           args:
             - /bin/sh
             - -c
@@ -197,6 +236,7 @@ spec:
                 --host 0.0.0.0 --port 2719 \
                 --base-url "/live-monitor/w${ORDINAL}" \
                 --no-token \
+                --session-ttl 5 \
                 --allow-origins https://ard-modeling-service.slac.stanford.edu
           envFrom:
             - configMapRef:
@@ -213,6 +253,9 @@ spec:
             - name: live-monitor-ui
               mountPath: /app/lume_visualizations/live_stream_monitor.head.html
               subPath: live_stream_monitor.head.html
+            - name: live-monitor-ui
+              mountPath: /app/lume_visualizations/dashboard.py
+              subPath: dashboard.py
           startupProbe:
             exec:
               command:

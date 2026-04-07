@@ -24,6 +24,7 @@ configMapGenerator:
       - live-monitor-ui/live_stream_monitor.css
       - live-monitor-ui/live_stream_monitor.head.html
       - live-monitor-ui/live_monitor_allocator.py
+      - live-monitor-ui/dashboard.py
 
 patches:
   - target:
