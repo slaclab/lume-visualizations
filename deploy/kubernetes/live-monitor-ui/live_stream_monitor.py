@@ -125,8 +125,8 @@ def live_controls(mo, SCREEN_KEYS):
     live_show_sigma_z = mo.ui.checkbox(value=True, label="sigma_z")
     live_show_emit_x = mo.ui.checkbox(value=True, label="eps_n,x")
     live_show_emit_y = mo.ui.checkbox(value=True, label="eps_n,y")
-    live_show_twiss_a_beta = mo.ui.checkbox(value=True, label="a.beta")
-    live_show_twiss_b_beta = mo.ui.checkbox(value=True, label="b.beta")
+    live_show_twiss_a_beta = mo.ui.checkbox(value=True, label="x.beta")
+    live_show_twiss_b_beta = mo.ui.checkbox(value=True, label="y.beta")
     live_controls_ui = mo.vstack(
         [
             mo.hstack(
@@ -185,8 +185,8 @@ def interactive_controls(mo, SCREEN_KEYS):
     interactive_show_sigma_z = mo.ui.checkbox(value=True, label="sigma_z")
     interactive_show_emit_x = mo.ui.checkbox(value=True, label="eps_n,x")
     interactive_show_emit_y = mo.ui.checkbox(value=True, label="eps_n,y")
-    interactive_show_twiss_a_beta = mo.ui.checkbox(value=True, label="a.beta")
-    interactive_show_twiss_b_beta = mo.ui.checkbox(value=True, label="b.beta")
+    interactive_show_twiss_a_beta = mo.ui.checkbox(value=True, label="x.beta")
+    interactive_show_twiss_b_beta = mo.ui.checkbox(value=True, label="y.beta")
     # All display controls in a single compact row above the dashboard
     interactive_controls_ui = mo.hstack(
         [
@@ -399,7 +399,7 @@ def layout(
             mo.hstack(
                 [interactive_controls_ui, apply_machine_btn],
                 widths=[0.65, 0.35],
-                gap="1.0rem",
+                gap="5rem",
             ),
             interactive_dashboard_widget,
             interactive_slider_controls_ui,
