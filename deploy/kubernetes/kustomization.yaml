@@ -5,13 +5,17 @@ resources:
   - namespace.yaml
   - configmap.yaml
   # EPICS mode: include ONE of the two configmap-epics-*.yaml files below.
-  # - configmap-epics-fake.yaml   → in-pod fake IOC (local/staging)
-  # - configmap-epics-real.yaml   → real facility CA gateway (production)
-  - configmap-epics-fake.yaml
+  # - configmap-epics-fake.yaml   # for in-pod fake IOC (local/staging)
+  # - configmap-epics-real.yaml   # for LCLS CA gateway (production)
+  - configmap-epics-real.yaml
   - quad-scan.yaml
   - live-monitor.yaml
   - ingress.yaml
   - quad-scan-ingress.yaml
+
+# images:
+#   - name: ghcr.io/slaclab/lume-visualizations
+#     newTag: pool
 
 configMapGenerator:
   - name: lume-live-monitor-ui
@@ -19,6 +23,8 @@ configMapGenerator:
       - live-monitor-ui/live_stream_monitor.py
       - live-monitor-ui/live_stream_monitor.css
       - live-monitor-ui/live_stream_monitor.head.html
+      - live-monitor-ui/live_monitor_allocator.py
+      - live-monitor-ui/dashboard.py
 
 patches:
   - target:
@@ -36,26 +42,3 @@ patches:
           - --port
           - "2718"
           - --headless
-  - target:
-      group: apps
-      version: v1
-      kind: Deployment
-      name: lume-live-monitor
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/args
-        value:
-          - python
-          - -m
-          - marimo
-          - run
-          - /app/lume_visualizations/live_stream_monitor.py
-          - --host
-          - 0.0.0.0
-          - --port
-          - "2719"
-          - --base-url
-          - /live-monitor
-          - --no-token
-          - --allow-origins
-          - https://ard-modeling-service.slac.stanford.edu

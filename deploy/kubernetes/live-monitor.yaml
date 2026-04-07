@@ -1,42 +1,243 @@
+# ---------------------------------------------------------------------------
+# Live Monitor — allocator + per-worker routing
+# ---------------------------------------------------------------------------
+#
+# CHANGING THE NUMBER OF WORKERS
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# The worker count is currently set to 5.  To change it (e.g. to 3 or 8):
+#
+#   1. In THIS FILE:
+#      a. Change the allocator env var LUME_WORKER_COUNT to the new number.
+#      b. Change the StatefulSet `replicas:` to the same number.
+#      c. Add or remove per-pod Service blocks (lume-live-monitor-wN).
+#         Each block selects `statefulset.kubernetes.io/pod-name:
+#         lume-live-monitor-worker-N`.
+#
+#   2. In ingress.yaml:
+#      Add or remove the `/live-monitor/wN` path entries to match.
+#
+#   3. Apply:
+#         cd deploy/kubernetes && kubectl apply -k .
+#      Then delete any orphaned per-pod Services for removed workers:
+#         kubectl delete svc -n lume-visualizations lume-live-monitor-wN
+#
+# ---------------------------------------------------------------------------
+# Allocator — lightweight redirect service that assigns each browser to a
+# free worker pod (/live-monitor/ → /live-monitor/wN/).
+# ---------------------------------------------------------------------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: lume-live-monitor
+  name: lume-live-monitor-allocator
   namespace: lume-visualizations
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: lume-live-monitor
+      app: lume-live-monitor-allocator
   template:
     metadata:
       labels:
-        app: lume-live-monitor
+        app: lume-live-monitor-allocator
     spec:
+      containers:
+        - name: allocator
+          image: ghcr.io/slaclab/lume-visualizations:latest
+          imagePullPolicy: Always
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          command: ["python", "/app/live_monitor_allocator.py"]
+          args: ["--host", "0.0.0.0", "--port", "2720"]
+          env:
+            - name: LUME_BASE_URL
+              value: /live-monitor
+            - name: LUME_WORKER_COUNT
+              value: "5"
+            - name: LUME_SESSION_TIMEOUT_SECONDS
+              value: "300"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 2720
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 2720
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          ports:
+            - containerPort: 2720
+              name: http
+          volumeMounts:
+            - name: live-monitor-ui
+              mountPath: /app/live_monitor_allocator.py
+              subPath: live_monitor_allocator.py
+      volumes:
+        - name: live-monitor-ui
+          configMap:
+            name: lume-live-monitor-ui
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lume-live-monitor-allocator
+  namespace: lume-visualizations
+spec:
+  selector:
+    app: lume-live-monitor-allocator
+  ports:
+    - name: http
+      port: 80
+      targetPort: 2720
+---
+# ---------------------------------------------------------------------------
+# Per-pod Services — one for each StatefulSet ordinal, used by Ingress to
+# route /live-monitor/wN directly to the corresponding worker pod.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: lume-live-monitor-w0
+  namespace: lume-visualizations
+spec:
+  selector:
+    statefulset.kubernetes.io/pod-name: lume-live-monitor-worker-0
+  ports:
+    - name: http
+      port: 80
+      targetPort: 2719
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lume-live-monitor-w1
+  namespace: lume-visualizations
+spec:
+  selector:
+    statefulset.kubernetes.io/pod-name: lume-live-monitor-worker-1
+  ports:
+    - name: http
+      port: 80
+      targetPort: 2719
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lume-live-monitor-w2
+  namespace: lume-visualizations
+spec:
+  selector:
+    statefulset.kubernetes.io/pod-name: lume-live-monitor-worker-2
+  ports:
+    - name: http
+      port: 80
+      targetPort: 2719
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lume-live-monitor-w3
+  namespace: lume-visualizations
+spec:
+  selector:
+    statefulset.kubernetes.io/pod-name: lume-live-monitor-worker-3
+  ports:
+    - name: http
+      port: 80
+      targetPort: 2719
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lume-live-monitor-w4
+  namespace: lume-visualizations
+spec:
+  selector:
+    statefulset.kubernetes.io/pod-name: lume-live-monitor-worker-4
+  ports:
+    - name: http
+      port: 80
+      targetPort: 2719
+---
+# ---------------------------------------------------------------------------
+# Headless Service — required by the StatefulSet for pod DNS.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: lume-live-monitor-worker
+  namespace: lume-visualizations
+spec:
+  clusterIP: None
+  selector:
+    app: lume-live-monitor-worker
+  ports:
+    - name: http
+      port: 2719
+      targetPort: 2719
+---
+# ---------------------------------------------------------------------------
+# Workers — 5-replica StatefulSet.  Each pod derives its ordinal from
+# hostname and runs marimo with --base-url /live-monitor/wN.
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: lume-live-monitor-worker
+  namespace: lume-visualizations
+spec:
+  serviceName: lume-live-monitor-worker
+  podManagementPolicy: Parallel
+  replicas: 5
+  selector:
+    matchLabels:
+      app: lume-live-monitor-worker
+  template:
+    metadata:
+      labels:
+        app: lume-live-monitor-worker
+    spec:
+      restartPolicy: Always
       containers:
         - name: app
           image: ghcr.io/slaclab/lume-visualizations:latest
           imagePullPolicy: Always
-          restartPolicy: Always
           resources:
             limits:
               memory: "2Gi"
+              cpu: "2000m"
+            requests:
               cpu: "1000m"
+          env:
+            # The container sees all host CPUs but is cgroup-limited.
+            # Pin threading libraries to match the actual CPU allocation
+            # to avoid massive contention (32 threads on 2 cores).
+            - name: OMP_NUM_THREADS
+              value: "2"
+            - name: MKL_NUM_THREADS
+              value: "2"
+            - name: OPENBLAS_NUM_THREADS
+              value: "2"
+            - name: TORCH_NUM_THREADS
+              value: "2"
+            - name: TZ
+              value: "US/Pacific"
           args:
-            - python
-            - -m
-            - marimo
-            - run
-            - /app/lume_visualizations/live_stream_monitor.py
-            - --host
-            - 0.0.0.0
-            - --port
-            - "2719"
-            - --base-url
-            - /live-monitor
-            - --no-token
-            - --allow-origins
-            - https://ard-modeling-service.slac.stanford.edu
+            - /bin/sh
+            - -c
+            - |
+              ORDINAL=$(hostname | rev | cut -d- -f1 | rev)
+              exec python -m marimo run \
+                /app/lume_visualizations/live_stream_monitor.py \
+                --host 0.0.0.0 --port 2719 \
+                --base-url "/live-monitor/w${ORDINAL}" \
+                --no-token \
+                --session-ttl 5 \
+                --allow-origins https://ard-modeling-service.slac.stanford.edu
           envFrom:
             - configMapRef:
                 name: lume-visualizations-config
@@ -52,6 +253,36 @@ spec:
             - name: live-monitor-ui
               mountPath: /app/lume_visualizations/live_stream_monitor.head.html
               subPath: live_stream_monitor.head.html
+            - name: live-monitor-ui
+              mountPath: /app/lume_visualizations/dashboard.py
+              subPath: dashboard.py
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - 'O=$(hostname | rev | cut -d- -f1 | rev); curl -sf http://localhost:2719/live-monitor/w${O}/health'
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - 'O=$(hostname | rev | cut -d- -f1 | rev); curl -sf http://localhost:2719/live-monitor/w${O}/health'
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - 'O=$(hostname | rev | cut -d- -f1 | rev); curl -sf http://localhost:2719/live-monitor/w${O}/health'
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
           ports:
             - containerPort: 2719
               name: http
@@ -59,16 +290,3 @@ spec:
         - name: live-monitor-ui
           configMap:
             name: lume-live-monitor-ui
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: lume-live-monitor
-  namespace: lume-visualizations
-spec:
-  selector:
-    app: lume-live-monitor
-  ports:
-    - name: http
-      port: 80
-      targetPort: 2719

@@ -39,7 +39,7 @@ RUN git clone https://github.com/slaclab/lcls-lattice.git /opt/lcls-lattice \
     && cd /opt/lcls-lattice \
     && git checkout ${LCLS_LATTICE_REF}
 
-RUN git clone https://github.com/pluflou/virtual-accelerator.git /opt/virtual-accelerator \
+RUN git clone https://github.com/slaclab/virtual-accelerator.git /opt/virtual-accelerator \
     && cd /opt/virtual-accelerator \
     && python -m pip install --upgrade setuptools wheel \
     && python -m pip install --upgrade --index-url https://download.pytorch.org/whl/cpu torch \
