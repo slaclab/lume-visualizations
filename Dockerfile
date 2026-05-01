@@ -41,6 +41,7 @@ RUN git clone https://github.com/slaclab/lcls-lattice.git /opt/lcls-lattice \
 
 RUN git clone https://github.com/slaclab/virtual-accelerator.git /opt/virtual-accelerator \
     && cd /opt/virtual-accelerator \
+    && git checkout mlflow-demo \
     && python -m pip install --upgrade setuptools wheel \
     && python -m pip install --upgrade --index-url https://download.pytorch.org/whl/cpu torch \
     && python -m pip install -e . \

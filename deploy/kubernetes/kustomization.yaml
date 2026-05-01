@@ -15,7 +15,7 @@ resources:
 
 images:
   - name: ghcr.io/slaclab/lume-visualizations
-    newTag: bmad
+    newTag: amsc-demo
 
 configMapGenerator:
   - name: lume-live-monitor-ui
