@@ -44,7 +44,7 @@ RUN git clone https://github.com/slaclab/virtual-accelerator.git /opt/virtual-ac
     && git checkout mlflow-demo \
     && python -m pip install --upgrade setuptools wheel \
     && python -m pip install --upgrade --index-url https://download.pytorch.org/whl/cpu torch \
-    && python -m pip install -e . \
+    && python -m pip install -e ".[surrogate,bmad]" \
     && python -m pip install /app
 
 EXPOSE 2718 2719
