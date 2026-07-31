@@ -9,22 +9,14 @@ resources:
   # - configmap-epics-real.yaml   # for LCLS CA gateway (production)
   - configmap-epics-real.yaml
   - quad-scan.yaml
-  - live-monitor.yaml
-  - ingress.yaml
   - quad-scan-ingress.yaml
+
+# The live-stream monitor now ships from webapp/ (see webapp/deploy/kubernetes).
+# This kustomization retains only the quad-scan marimo app.
 
 images:
   - name: ghcr.io/slaclab/lume-visualizations
     newTag: amsc-demo
-
-configMapGenerator:
-  - name: lume-live-monitor-ui
-    files:
-      - live-monitor-ui/live_stream_monitor.py
-      - live-monitor-ui/live_stream_monitor.css
-      - live-monitor-ui/live_stream_monitor.head.html
-      - live-monitor-ui/live_monitor_allocator.py
-      - live-monitor-ui/dashboard.py
 
 patches:
   - target:
