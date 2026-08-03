@@ -78,11 +78,10 @@ export async function machineSnapshot(): Promise<Record<string, number>> {
 /** Subscribe to the read-only live SSE stream. Returns an unsubscribe fn. */
 export function subscribeLive(
   screen: string,
-  period: number,
   onFrame: (frame: Frame) => void,
   onError?: (message: string) => void,
 ): () => void {
-  const url = `${API_BASE}/api/live/stream?screen=${encodeURIComponent(screen)}&period=${period}`
+  const url = `${API_BASE}/api/live/stream?screen=${encodeURIComponent(screen)}`
   const es = new EventSource(url)
   es.addEventListener('frame', (ev) => {
     onFrame(unpackFrame(JSON.parse((ev as MessageEvent).data)))

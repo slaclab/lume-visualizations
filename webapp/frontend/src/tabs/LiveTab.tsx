@@ -18,7 +18,6 @@ export function LiveTab({ config }: { config: ConfigResponse }) {
   const [screen, setScreen] = useState(config.screens.find((s) => s.has_image)?.key ?? config.screens[0].key)
   const [scaleMode, setScaleMode] = useState<ScaleMode>('robust')
   const [visibility, setVisibility] = useState<Visibility>(ALL_VISIBLE)
-  const [period, setPeriod] = useState(1.0)
   const [frame, setFrame] = useState<Frame | null>(null)
   const [tsPoint, setTsPoint] = useState<(Scalars & { x: number; key: string }) | null>(null)
   const [status, setStatus] = useState('Connecting…')
@@ -28,7 +27,6 @@ export function LiveTab({ config }: { config: ConfigResponse }) {
     setStatus('Connecting…')
     const unsub = subscribeLive(
       screen,
-      period,
       (f) => {
         setFrame(f)
         const x = counterRef.current++
@@ -38,7 +36,7 @@ export function LiveTab({ config }: { config: ConfigResponse }) {
       (msg) => setStatus(`Stream error: ${msg}`),
     )
     return unsub
-  }, [screen, period])
+  }, [screen])
 
   return (
     <div>
@@ -50,20 +48,7 @@ export function LiveTab({ config }: { config: ConfigResponse }) {
         onScaleMode={setScaleMode}
         visibility={visibility}
         onVisibility={setVisibility}
-      >
-        <label>
-          Poll period{' '}
-          <input
-            type="range"
-            min={0.2}
-            max={5}
-            step={0.1}
-            value={period}
-            onChange={(e) => setPeriod(parseFloat(e.target.value))}
-          />
-          {period.toFixed(1)}s
-        </label>
-      </Controls>
+      />
 
       <DashboardPanels
         frame={frame}
