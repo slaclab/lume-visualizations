@@ -159,6 +159,20 @@ K-worker pool + baseline-merge.
   the plots stay populated when the Live tab isn't mounted. Frontend-only — the singleton
   live producer already runs continuously, so nothing changes server-side. Consider a
   cap on the retained buffer so a long-backgrounded stream doesn't grow unbounded.
+- **Reduce eval latency `L` (measured ~5s — the real UX ceiling).** Scaling only adds
+  more concurrent 5s-evals; it doesn't make them faster. In priority order:
+  1. **Profile where the 5s goes** — time the injector surrogate call vs. the Bmad
+     tracking (`model.get()`) vs. any per-eval Tao re-init. Everything below depends on
+     this; don't optimize blind.
+  2. **Cheaper levers first:** shorter track range (OTR2→TD11 is long), fewer tracked
+     particles if acceptable, and **cache results for identical inputs**.
+  3. **MPI/parallel tracking — only if profiling shows tracking-bound cost.** Bmad MPI
+     parallelizes particle tracking, but: `threads=2` gave zero single-eval speedup and
+     the beam is only ~1000 particles, so tracking may not even dominate. It's also an
+     architectural change (MPI-enabled Bmad build; `pytao` runs in-process single-rank;
+     lume-bmad/VA would need an MPI tracking hook) and trades throughput for latency
+     (K cores per eval instead of K parallel evals). Verify the path is reachable before
+     committing. See `webapp/deploy/kubernetes/CAPACITY.md` for the full findings + TODOs.
 
 ## Explicitly NOT doing (and why)
 
