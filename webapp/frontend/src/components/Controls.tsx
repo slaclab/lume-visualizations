@@ -33,9 +33,9 @@ export function Controls({
   children,
 }: Props) {
   return (
-    <div className="controls-row">
-      <label>
-        Screen{' '}
+    <div className="controls">
+      <label className="control-field">
+        <span className="control-label">Screen</span>
         <select value={screen} onChange={(e) => onScreen(e.target.value)}>
           {screens.map((s) => (
             <option key={s.key} value={s.key}>
@@ -44,28 +44,30 @@ export function Controls({
           ))}
         </select>
       </label>
-      <label>
-        Image scale{' '}
+      <label className="control-field">
+        <span className="control-label">Image scale</span>
         <select value={scaleMode} onChange={(e) => onScaleMode(e.target.value as ScaleMode)}>
           <option value="robust">robust</option>
           <option value="fixed">fixed</option>
           <option value="auto">auto</option>
         </select>
       </label>
-      <span className="vis-group">
-        <b>Show:</b>
-        {VIS_ITEMS.map((item) => (
-          <label key={item.key} className="vis-check">
-            <input
-              type="checkbox"
-              checked={visibility[item.key]}
-              onChange={(e) => onVisibility({ ...visibility, [item.key]: e.target.checked })}
-            />
-            {item.label}
-          </label>
-        ))}
-      </span>
-      {children}
+      <div className="control-field">
+        <span className="control-label">Show</span>
+        <div className="vis-group">
+          {VIS_ITEMS.map((item) => (
+            <label key={item.key} className="vis-check">
+              <input
+                type="checkbox"
+                checked={visibility[item.key]}
+                onChange={(e) => onVisibility({ ...visibility, [item.key]: e.target.checked })}
+              />
+              {item.label}
+            </label>
+          ))}
+        </div>
+      </div>
+      {children ? <div className="control-actions">{children}</div> : null}
     </div>
   )
 }

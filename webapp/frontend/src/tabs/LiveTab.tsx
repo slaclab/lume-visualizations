@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { subscribeLive } from '../api/client'
 import { Controls } from '../components/Controls'
+import { DashboardLayout } from '../components/DashboardLayout'
 import { DashboardPanels } from '../components/DashboardPanels'
 import type { ConfigResponse, Frame, ScaleMode, Scalars, Visibility } from '../types'
+
+type Tab = 'live' | 'interactive'
 
 const ALL_VISIBLE: Visibility = {
   sigma_x: true,
@@ -14,7 +17,15 @@ const ALL_VISIBLE: Visibility = {
   beta_y: true,
 }
 
-export function LiveTab({ config }: { config: ConfigResponse }) {
+export function LiveTab({
+  config,
+  tab,
+  onTab,
+}: {
+  config: ConfigResponse
+  tab: Tab
+  onTab: (t: Tab) => void
+}) {
   const [screen, setScreen] = useState(config.screens.find((s) => s.has_image)?.key ?? config.screens[0].key)
   const [scaleMode, setScaleMode] = useState<ScaleMode>('robust')
   const [visibility, setVisibility] = useState<Visibility>(ALL_VISIBLE)
@@ -39,17 +50,23 @@ export function LiveTab({ config }: { config: ConfigResponse }) {
   }, [screen])
 
   return (
-    <div>
-      <Controls
-        screens={config.screens}
-        screen={screen}
-        onScreen={setScreen}
-        scaleMode={scaleMode}
-        onScaleMode={setScaleMode}
-        visibility={visibility}
-        onVisibility={setVisibility}
-      />
-
+    <DashboardLayout
+      version={config.version}
+      tab={tab}
+      onTab={onTab}
+      status={status}
+      settings={
+        <Controls
+          screens={config.screens}
+          screen={screen}
+          onScreen={setScreen}
+          scaleMode={scaleMode}
+          onScaleMode={setScaleMode}
+          visibility={visibility}
+          onVisibility={setVisibility}
+        />
+      }
+    >
       <DashboardPanels
         frame={frame}
         scaleMode={scaleMode}
@@ -58,8 +75,6 @@ export function LiveTab({ config }: { config: ConfigResponse }) {
         resetKey={screen}
         windowPoints={120}
       />
-
-      <div className="status">{status}</div>
-    </div>
+    </DashboardLayout>
   )
 }

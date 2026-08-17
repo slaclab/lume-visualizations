@@ -20,25 +20,8 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
-        <h1>LUME Live Stream Monitor</h1>
-        <span className="version">{config.version}</span>
-      </header>
-
-      <nav className="tab-nav">
-        <button className={tab === 'live' ? 'active' : ''} onClick={() => setTab('live')}>
-          Live monitoring
-        </button>
-        <button
-          className={tab === 'interactive' ? 'active' : ''}
-          onClick={() => setTab('interactive')}
-        >
-          Interactive offline changes
-        </button>
-      </nav>
-
-      {tab === 'live' && <LiveTab config={config} />}
-      {tab === 'interactive' && <InteractiveTab config={config} />}
+      {tab === 'live' && <LiveTab config={config} tab={tab} onTab={setTab} />}
+      {tab === 'interactive' && <InteractiveTab config={config} tab={tab} onTab={setTab} />}
     </div>
   )
 }

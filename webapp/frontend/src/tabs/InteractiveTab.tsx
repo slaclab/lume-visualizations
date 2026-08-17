@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { evaluate, machineSnapshot } from '../api/client'
 import { Controls } from '../components/Controls'
+import { DashboardLayout } from '../components/DashboardLayout'
 import { DashboardPanels } from '../components/DashboardPanels'
 import { SliderControl } from '../components/SliderControl'
 import type { ConfigResponse, Frame, ScaleMode, Scalars, Visibility } from '../types'
+
+type Tab = 'live' | 'interactive'
 
 const ALL_VISIBLE: Visibility = {
   sigma_x: true,
@@ -18,7 +21,15 @@ const ALL_VISIBLE: Visibility = {
 const SCAN_PV = 'QUAD:IN20:525:BCTRL'
 const SCAN_STEPS = 20
 
-export function InteractiveTab({ config }: { config: ConfigResponse }) {
+export function InteractiveTab({
+  config,
+  tab,
+  onTab,
+}: {
+  config: ConfigResponse
+  tab: Tab
+  onTab: (t: Tab) => void
+}) {
   const [values, setValues] = useState<Record<string, number>>(() =>
     Object.fromEntries(config.inputs.map((i) => [i.id, i.default])),
   )
@@ -110,20 +121,29 @@ export function InteractiveTab({ config }: { config: ConfigResponse }) {
   }, [])
 
   return (
-    <div>
-      <Controls
-        screens={config.screens}
-        screen={screen}
-        onScreen={setScreen}
-        scaleMode={scaleMode}
-        onScaleMode={setScaleMode}
-        visibility={visibility}
-        onVisibility={setVisibility}
-      >
-        <button onClick={() => void applyMachine()}>Apply current machine values</button>
-        <button onClick={() => void scanQuad()}>Scan Quad</button>
-      </Controls>
-
+    <DashboardLayout
+      version={config.version}
+      tab={tab}
+      onTab={onTab}
+      status={status}
+      settings={
+        <Controls
+          screens={config.screens}
+          screen={screen}
+          onScreen={setScreen}
+          scaleMode={scaleMode}
+          onScaleMode={setScaleMode}
+          visibility={visibility}
+          onVisibility={setVisibility}
+        >
+          <button onClick={() => void applyMachine()}>Apply current machine values</button>
+          <button onClick={() => void scanQuad()}>Scan Quad</button>
+        </Controls>
+      }
+      sliders={config.inputs.map((cfg) => (
+        <SliderControl key={cfg.id} config={cfg} value={values[cfg.id]} onChange={handleSlider} />
+      ))}
+    >
       <DashboardPanels
         frame={frame}
         scaleMode={scaleMode}
@@ -131,14 +151,6 @@ export function InteractiveTab({ config }: { config: ConfigResponse }) {
         tsPoint={tsPoint}
         resetKey={screen}
       />
-
-      <div className="slider-grid">
-        {config.inputs.map((cfg) => (
-          <SliderControl key={cfg.id} config={cfg} value={values[cfg.id]} onChange={handleSlider} />
-        ))}
-      </div>
-
-      <div className="status">{status}</div>
-    </div>
+    </DashboardLayout>
   )
 }

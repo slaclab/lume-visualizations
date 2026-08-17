@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react'
 import uPlot from 'uplot'
 import type { Options } from 'uplot'
 import 'uplot/dist/uPlot.min.css'
+import { useElementSize } from '../hooks/useElementSize'
+import { PlotLegend } from './PlotLegend'
+import { PLOT_THEMES, useTheme } from '../theme'
 import type { Scalars, Visibility } from '../types'
 
 interface Props {
@@ -11,31 +14,34 @@ interface Props {
   windowPoints?: number
 }
 
-const W = 460
-const H = 300
 // [xs, xrms, yrms, sigmaz, emx, emy]
 type Cols = [number[], number[], number[], number[], number[], number[]]
 
 const COLORS = ['#58a6ff', '#f78166', '#e3b341', '#3fb950', '#d2a8ff']
 const LABELS = ['σx', 'σy', 'σz', 'εx', 'εy']
+const DASHED = [false, false, false, true, true]
+const VIS_KEYS: (keyof Visibility)[] = ['sigma_x', 'sigma_y', 'sigma_z', 'emit_x', 'emit_y']
 
 export function ScalarTimeseries({ point, resetKey, visibility, windowPoints = 60 }: Props) {
-  const elRef = useRef<HTMLDivElement>(null)
+  const { theme } = useTheme()
+  const colors = PLOT_THEMES[theme]
+  const [hostRef, size] = useElementSize<HTMLDivElement>()
   const uRef = useRef<uPlot | null>(null)
   const dataRef = useRef<Cols>([[], [], [], [], [], []])
   const lastKeyRef = useRef<string>('')
 
+  // Recreate the plot when the theme changes so axis/grid colors update.
   useEffect(() => {
-    if (!elRef.current) return
+    if (!hostRef.current) return
     const opts: Options = {
-      width: W,
-      height: H,
+      width: hostRef.current.clientWidth || 300,
+      height: hostRef.current.clientHeight || 200,
       scales: { x: { time: false }, y: {}, e: {} },
-      legend: { show: true },
+      legend: { show: false },
       axes: [
-        { stroke: '#c9d1d9', grid: { stroke: '#30363d' }, ticks: { stroke: '#30363d' } },
-        { scale: 'y', stroke: '#c9d1d9', grid: { stroke: '#30363d' }, label: 'RMS size (µm)' },
-        { scale: 'e', side: 1, stroke: '#c9d1d9', grid: { show: false }, label: 'Norm. emit (µm·rad)' },
+        { stroke: colors.axis, grid: { stroke: colors.grid }, ticks: { stroke: colors.grid } },
+        { scale: 'y', stroke: colors.axis, grid: { stroke: colors.grid }, label: 'RMS size (µm)' },
+        { scale: 'e', side: 1, stroke: colors.axis, grid: { show: false }, label: 'Norm. emit (µm·rad)' },
       ],
       series: [
         {},
@@ -46,13 +52,21 @@ export function ScalarTimeseries({ point, resetKey, visibility, windowPoints = 6
         { label: LABELS[4], stroke: COLORS[4], scale: 'e', width: 2, dash: [6, 3] },
       ],
     }
-    const u = new uPlot(opts, [[], [], [], [], [], []], elRef.current)
+    const u = new uPlot(opts, [[], [], [], [], [], []], hostRef.current)
+    u.setData(dataRef.current)
     uRef.current = u
     return () => {
       u.destroy()
       uRef.current = null
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colors])
+
+  // Resize the chart to fill its container.
+  useEffect(() => {
+    if (!uRef.current || size.width === 0 || size.height === 0) return
+    uRef.current.setSize({ width: size.width, height: size.height })
+  }, [size.width, size.height])
 
   // Reset history when the screen changes.
   useEffect(() => {
@@ -90,12 +104,20 @@ export function ScalarTimeseries({ point, resetKey, visibility, windowPoints = 6
       visibility.emit_y,
     ]
     flags.forEach((show, i) => u.setSeries(i + 1, { show }))
-  }, [visibility])
+  }, [visibility, colors])
 
   return (
     <div className="panel">
       <div className="panel-title">Scalar Diagnostics</div>
-      <div ref={elRef} className="uplot-host" />
+      <PlotLegend
+        items={LABELS.map((label, i) => ({
+          label,
+          color: COLORS[i],
+          dashed: DASHED[i],
+          hidden: !visibility[VIS_KEYS[i]],
+        }))}
+      />
+      <div ref={hostRef} className="uplot-host" />
     </div>
   )
 }
