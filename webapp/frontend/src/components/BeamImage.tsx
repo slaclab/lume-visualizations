@@ -101,7 +101,20 @@ export function BeamImage({
 
   return (
     <div className="panel">
-      <div className="panel-title">{screenLabel} Beam Image</div>
+      <div className="panel-title beam-title">
+        <span className="beam-title-text">{screenLabel} Beam Image</span>
+        <span className="info-tip" tabIndex={0} role="button" aria-label={`About the ${screenLabel} beam image`}>
+          <span className="info-icon" aria-hidden="true">i</span>
+        </span>
+        <span className="info-popover" role="tooltip">
+          <strong>Incoherent OTR image.</strong> Each frame is the tracked beam’s
+          transverse density convolved with the screen point-spread function
+          (image = PSF ∗ ρ), shown at the camera’s pixel-limited resolution
+          (17 µm/px, σ = 1 px) for the 1000-particle sample to render as a continuous spot. 
+          RMS size and emittance are computed from the particle coordinates, not this image. 
+          Screen does <strong>not</strong> model coherent OTR (COTR).
+        </span>
+      </div>
       <div ref={rowRef} className="beam-image-row">
         <canvas ref={canvasRef} className="beam-canvas" style={{ width: w, height: h }} />
         <canvas ref={barRef} className="colorbar" style={{ width: BAR_WIDTH, height: h }} />

@@ -305,6 +305,68 @@ body {
   margin-bottom: 0.35rem;
 }
 
+.beam-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.info-tip {
+  display: inline-flex;
+  cursor: help;
+  outline: none;
+}
+
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--muted);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.info-tip:hover .info-icon,
+.info-tip:focus-visible .info-icon {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.info-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  width: 340px;
+  max-width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--grid);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--txt);
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.45;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+
+.info-tip:hover ~ .info-popover,
+.info-tip:focus-visible ~ .info-popover {
+  opacity: 1;
+  visibility: visible;
+}
+
 .panel-caption {
   flex-shrink: 0;
   font-size: 0.72rem;
