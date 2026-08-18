@@ -45,8 +45,10 @@ export interface Frame {
   imageMessage: string
   imageCaption: string
   scalars: Scalars
-  scatterX: Float32Array | null
-  scatterPx: Float32Array | null
+  /** Phase-space coordinates in display units, keyed by coord name (x, px, y, py, z, pz). */
+  scatter: Record<string, Float32Array>
+  /** Display unit for each scatter coord, e.g. { x: "µm", px: "eV/c" }. */
+  scatterUnits: Record<string, string>
   twissS: number[] | null
   twissABeta: number[] | null
   twissBBeta: number[] | null

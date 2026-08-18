@@ -56,8 +56,8 @@ export function DashboardPanels({
           scaleMode={scaleMode}
         />
         <PhaseSpaceScatter
-          x={frame?.scatterX ?? null}
-          px={frame?.scatterPx ?? null}
+          scatter={frame?.scatter ?? {}}
+          units={frame?.scatterUnits ?? {}}
           screenLabel={label}
         />
         <ScalarTimeseries

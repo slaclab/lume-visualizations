@@ -374,6 +374,35 @@ body {
   margin-top: 0.25rem;
 }
 
+.scatter-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.axis-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.axis-picker label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.axis-picker select {
+  background: var(--dark);
+  color: var(--txt);
+  border: 1px solid var(--grid);
+  border-radius: 4px;
+  padding: 0.1rem 0.25rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
 .plot-legend {
   flex-shrink: 0;
   display: flex;

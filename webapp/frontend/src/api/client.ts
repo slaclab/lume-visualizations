@@ -18,8 +18,8 @@ interface WireFrame {
   image_message: string
   image_caption: string
   scalars: Frame['scalars']
-  scatter_x_b64: string | null
-  scatter_px_b64: string | null
+  scatter_b64: Record<string, string> | null
+  scatter_units: Record<string, string> | null
   twiss_s: number[] | null
   twiss_a_beta: number[] | null
   twiss_b_beta: number[] | null
@@ -38,8 +38,12 @@ export function unpackFrame(p: WireFrame): Frame {
     imageMessage: p.image_message,
     imageCaption: p.image_caption,
     scalars: p.scalars,
-    scatterX: decodeFloat32(p.scatter_x_b64),
-    scatterPx: decodeFloat32(p.scatter_px_b64),
+    scatter: p.scatter_b64
+      ? Object.fromEntries(
+          Object.entries(p.scatter_b64).map(([k, v]) => [k, decodeFloat32(v)!]),
+        )
+      : {},
+    scatterUnits: p.scatter_units ?? {},
     twissS: p.twiss_s,
     twissABeta: p.twiss_a_beta,
     twissBBeta: p.twiss_b_beta,
