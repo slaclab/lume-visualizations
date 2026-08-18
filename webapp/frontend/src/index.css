@@ -333,6 +333,16 @@ body {
   opacity: 0.35;
 }
 
+.legend-cursor {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.legend-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
 .legend-swatch {
   width: 16px;
   height: 0;

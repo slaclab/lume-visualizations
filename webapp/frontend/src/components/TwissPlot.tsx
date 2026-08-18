@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import uPlot from 'uplot'
 import type { Options } from 'uplot'
 import 'uplot/dist/uPlot.min.css'
@@ -9,6 +9,13 @@ import type { Visibility } from '../types'
 
 const BETA_X_COLOR = '#79c0ff'
 const BETA_Y_COLOR = '#e3b341'
+
+type Hover = { s: number; betaX: number | null; betaY: number | null } | null
+
+function fmtVal(v: number | null): string {
+  if (v == null || Number.isNaN(v)) return '—'
+  return Number(v.toFixed(2)).toString()
+}
 
 interface Props {
   s: number[] | null
@@ -22,6 +29,7 @@ export function TwissPlot({ s, betaX, betaY, visibility }: Props) {
   const colors = PLOT_THEMES[theme]
   const [hostRef, size] = useElementSize<HTMLDivElement>()
   const uRef = useRef<uPlot | null>(null)
+  const [hover, setHover] = useState<Hover>(null)
 
   // Recreate the plot when the theme changes so axis/grid colors update.
   useEffect(() => {
@@ -40,6 +48,23 @@ export function TwissPlot({ s, betaX, betaY, visibility }: Props) {
         { label: 'βx', stroke: BETA_X_COLOR, scale: 'y', width: 2 },
         { label: 'βy', stroke: BETA_Y_COLOR, scale: 'y', width: 2 },
       ],
+      hooks: {
+        setCursor: [
+          (u) => {
+            const i = u.cursor.idx
+            if (i == null) {
+              setHover(null)
+              return
+            }
+            const d = u.data
+            setHover({
+              s: d[0][i] as number,
+              betaX: (d[1]?.[i] ?? null) as number | null,
+              betaY: (d[2]?.[i] ?? null) as number | null,
+            })
+          },
+        ],
+      },
     }
     const u = new uPlot(opts, [[], [], []], hostRef.current)
     uRef.current = u
@@ -77,9 +102,20 @@ export function TwissPlot({ s, betaX, betaY, visibility }: Props) {
     <div className="panel">
       <div className="panel-title">Twiss Parameters along Accelerator</div>
       <PlotLegend
+        cursor={hover == null ? null : `s=${fmtVal(hover.s)} m`}
         items={[
-          { label: 'βx', color: BETA_X_COLOR, hidden: !visibility.beta_x },
-          { label: 'βy', color: BETA_Y_COLOR, hidden: !visibility.beta_y },
+          {
+            label: 'βx',
+            color: BETA_X_COLOR,
+            hidden: !visibility.beta_x,
+            value: hover ? fmtVal(hover.betaX) : undefined,
+          },
+          {
+            label: 'βy',
+            color: BETA_Y_COLOR,
+            hidden: !visibility.beta_y,
+            value: hover ? fmtVal(hover.betaY) : undefined,
+          },
         ]}
       />
       <div ref={hostRef} className="uplot-host" />

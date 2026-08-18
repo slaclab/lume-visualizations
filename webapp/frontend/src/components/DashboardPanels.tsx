@@ -12,6 +12,7 @@ interface Props {
   tsPoint: (Scalars & { x: number; key: string }) | null
   resetKey: string
   windowPoints?: number
+  timeAxis?: boolean
 }
 
 const READOUTS: { id: keyof Scalars; label: string; unit: string }[] = [
@@ -29,6 +30,7 @@ export function DashboardPanels({
   tsPoint,
   resetKey,
   windowPoints,
+  timeAxis,
 }: Props) {
   const label = frame?.screenLabel ?? ''
   return (
@@ -63,6 +65,7 @@ export function DashboardPanels({
           resetKey={resetKey}
           visibility={visibility}
           windowPoints={windowPoints}
+          timeAxis={timeAxis}
         />
         <TwissPlot
           s={frame?.twissS ?? null}

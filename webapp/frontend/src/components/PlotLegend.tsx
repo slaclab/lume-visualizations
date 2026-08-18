@@ -3,16 +3,22 @@ export interface LegendItem {
   color: string
   dashed?: boolean
   hidden?: boolean
+  /** Value at the hovered cursor position, shown when present. */
+  value?: string
 }
 
-export function PlotLegend({ items }: { items: LegendItem[] }) {
+interface Props {
+  items: LegendItem[]
+  /** Readout for the hovered x position (e.g. a timestamp or index). */
+  cursor?: string | null
+}
+
+export function PlotLegend({ items, cursor }: Props) {
   return (
     <div className="plot-legend">
+      {cursor ? <span className="legend-cursor">{cursor}</span> : null}
       {items.map((it) => (
-        <span
-          key={it.label}
-          className={`legend-item${it.hidden ? ' legend-item-off' : ''}`}
-        >
+        <span key={it.label} className={`legend-item${it.hidden ? ' legend-item-off' : ''}`}>
           <span
             className="legend-swatch"
             style={{
@@ -21,6 +27,7 @@ export function PlotLegend({ items }: { items: LegendItem[] }) {
             }}
           />
           {it.label}
+          {it.value != null ? <span className="legend-value">{it.value}</span> : null}
         </span>
       ))}
     </div>

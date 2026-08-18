@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import uPlot from 'uplot'
 import type { Options } from 'uplot'
 import 'uplot/dist/uPlot.min.css'
@@ -12,6 +12,8 @@ interface Props {
   resetKey: string
   visibility: Visibility
   windowPoints?: number
+  /** Treat the x values as epoch-seconds timestamps and format the axis as time. */
+  timeAxis?: boolean
 }
 
 // [xs, xrms, yrms, sigmaz, emx, emy]
@@ -22,13 +24,27 @@ const LABELS = ['σx', 'σy', 'σz', 'εx', 'εy']
 const DASHED = [false, false, false, true, true]
 const VIS_KEYS: (keyof Visibility)[] = ['sigma_x', 'sigma_y', 'sigma_z', 'emit_x', 'emit_y']
 
-export function ScalarTimeseries({ point, resetKey, visibility, windowPoints = 60 }: Props) {
+type Hover = { x: number; vals: (number | null)[] } | null
+
+function fmtVal(v: number | null): string {
+  if (v == null || Number.isNaN(v)) return '—'
+  return Number(v.toFixed(3)).toString()
+}
+
+export function ScalarTimeseries({
+  point,
+  resetKey,
+  visibility,
+  windowPoints = 60,
+  timeAxis = false,
+}: Props) {
   const { theme } = useTheme()
   const colors = PLOT_THEMES[theme]
   const [hostRef, size] = useElementSize<HTMLDivElement>()
   const uRef = useRef<uPlot | null>(null)
   const dataRef = useRef<Cols>([[], [], [], [], [], []])
   const lastKeyRef = useRef<string>('')
+  const [hover, setHover] = useState<Hover>(null)
 
   // Recreate the plot when the theme changes so axis/grid colors update.
   useEffect(() => {
@@ -36,7 +52,7 @@ export function ScalarTimeseries({ point, resetKey, visibility, windowPoints = 6
     const opts: Options = {
       width: hostRef.current.clientWidth || 300,
       height: hostRef.current.clientHeight || 200,
-      scales: { x: { time: false }, y: {}, e: {} },
+      scales: { x: { time: timeAxis }, y: {}, e: {} },
       legend: { show: false },
       axes: [
         { stroke: colors.axis, grid: { stroke: colors.grid }, ticks: { stroke: colors.grid } },
@@ -51,6 +67,25 @@ export function ScalarTimeseries({ point, resetKey, visibility, windowPoints = 6
         { label: LABELS[3], stroke: COLORS[3], scale: 'e', width: 2, dash: [6, 3] },
         { label: LABELS[4], stroke: COLORS[4], scale: 'e', width: 2, dash: [6, 3] },
       ],
+      hooks: {
+        setCursor: [
+          (u) => {
+            const i = u.cursor.idx
+            if (i == null) {
+              setHover(null)
+              return
+            }
+            const d = u.data
+            setHover({
+              x: d[0][i] as number,
+              vals: [1, 2, 3, 4, 5].map((s) => {
+                const col = d[s] as readonly (number | null)[] | undefined
+                return col ? (col[i] ?? null) : null
+              }),
+            })
+          },
+        ],
+      },
     }
     const u = new uPlot(opts, [[], [], [], [], [], []], hostRef.current)
     u.setData(dataRef.current)
@@ -60,7 +95,7 @@ export function ScalarTimeseries({ point, resetKey, visibility, windowPoints = 6
       uRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [colors])
+  }, [colors, timeAxis])
 
   // Resize the chart to fill its container.
   useEffect(() => {
@@ -110,11 +145,19 @@ export function ScalarTimeseries({ point, resetKey, visibility, windowPoints = 6
     <div className="panel">
       <div className="panel-title">Scalar Diagnostics</div>
       <PlotLegend
+        cursor={
+          hover == null
+            ? null
+            : timeAxis
+              ? new Date(hover.x * 1000).toLocaleTimeString()
+              : `#${Math.round(hover.x)}`
+        }
         items={LABELS.map((label, i) => ({
           label,
           color: COLORS[i],
           dashed: DASHED[i],
           hidden: !visibility[VIS_KEYS[i]],
+          value: hover ? fmtVal(hover.vals[i]) : undefined,
         }))}
       />
       <div ref={hostRef} className="uplot-host" />

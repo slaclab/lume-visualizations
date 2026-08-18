@@ -40,8 +40,8 @@ export function LiveTab({
       screen,
       (f) => {
         setFrame(f)
-        const x = counterRef.current++
-        setTsPoint({ ...f.scalars, x, key: `${x}` })
+        const k = counterRef.current++
+        setTsPoint({ ...f.scalars, x: f.timestamp, key: `${k}` })
         setStatus(`Live: frame ${f.frameIndex} for ${screen}`)
       },
       (msg) => setStatus(`Stream error: ${msg}`),
@@ -74,6 +74,7 @@ export function LiveTab({
         tsPoint={tsPoint}
         resetKey={screen}
         windowPoints={120}
+        timeAxis
       />
     </DashboardLayout>
   )
