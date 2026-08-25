@@ -4,52 +4,43 @@ from __future__ import annotations
 
 import os
 import time
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
-import platform
 from typing import Mapping, Optional
 
 import numpy as np
 
-from lume_visualizations.config import (
-    EPICS_INPUT_PVS,
-    MODEL_INPUT_NAMES,
-    SCREEN_CONFIGS,
-    EXCLUDED_EPICS_PVS,
-    resolve_lcls_lattice_path,
-)
+from lume_visualizations.config import resolve_lcls_lattice_path
+from lume_visualizations.registry import ModelSpec, get_spec
 
-
-@contextmanager
-def _tao_model_workdir(lattice_path: str):
-    previous_cwd = Path.cwd()
-    model_dir = Path(lattice_path) / "bmad" / "models" / "cu_hxr"
-    os.chdir(model_dir)
-    try:
-        yield
-    finally:
-        os.chdir(previous_cwd)
-
-def _create_cu_hxr_staged_model(start_element="OTR2", end_element="OTR4"):
-    from virtual_accelerator.models.staged_model import get_cu_hxr_staged_model
-    return get_cu_hxr_staged_model(start_element=start_element, end_element=end_element, track_beam=True)
-
-
-def _create_cu_hxr_bmad_model(start_element="OTR2", end_element="OTR4"):
-    from virtual_accelerator.models.cu_hxr import get_cu_hxr_bmad_model
-    return get_cu_hxr_bmad_model(start_element=start_element, end_element=end_element, track_beam=True)
-
-MODELS = {
-    "cu_hxr_staged": _create_cu_hxr_staged_model,
-    "cu_hxr_bmad": _create_cu_hxr_bmad_model,
+# Phase-space coordinates exposed for the scatter plot (any vs any). Positions are
+# converted to µm for display; momenta stay in eV/c.
+SCATTER_COORDS = ("x", "px", "y", "py", "z", "pz")
+SCATTER_DISPLAY_UNITS = {
+    "x": "µm", "y": "µm", "z": "µm",
+    "px": "eV/c", "py": "eV/c", "pz": "eV/c",
 }
+_SCATTER_POSITION_COORDS = ("x", "y", "z")
 
-MODEL_INFO = {
-    "cu_hxr_staged": {"description": "Staged LUMEModel chaining the LCLS Cu Injector ML model (predicting at OTR2)with a Bmad beamline simulation tracking from OTR2 to OTR4."},
-    "cu_hxr_bmad": {"description": "LUMEModel of Bmad linac simulation tracking from OTR2 to OTR4."},
-}
+# Screen images are a 2D histogram of the tracked macroparticles (~1000), so at the
+# native 17.06 um pixel pitch they are sparse single-count noise. Convolving with a
+# Gaussian reproduces the documented incoherent OTR image formation (image = PSF *
+# transverse density; Loos et al., FEL08, THBAU01). The LCLS OTR optical PSF (FWHM
+# 1.44 lambda/theta ~= 4-11 um) is sub-pixel, so the resolution is pixel-limited:
+# sigma = 1 px is the physically honest kernel. Larger only de-noises the finite
+# particle sample; it does not model the instrument.
+OTR_PSF_SIGMA_PX = 1.0
+
+
+def _apply_screen_psf(image: Optional[np.ndarray], sigma_px: float = OTR_PSF_SIGMA_PX):
+    """Convolve a raw screen histogram with the pixel-limited OTR PSF, renormalized."""
+    if image is None or sigma_px <= 0:
+        return image
+    from scipy.ndimage import gaussian_filter
+
+    smoothed = gaussian_filter(np.asarray(image, dtype=float), sigma=sigma_px)
+    peak = float(smoothed.max())
+    return smoothed / peak if peak > 0 else smoothed
 
 
 # ---------------------------------------------------------------------------
@@ -72,8 +63,12 @@ class BeamFrame:
     image: Optional[np.ndarray] = None
     image_message: str = ""
     image_caption: str = ""
-    beam_x_um: Optional[np.ndarray] = None
-    beam_px_evc: Optional[np.ndarray] = None
+    # Phase-space scatter coordinates in display units (see SCATTER_DISPLAY_UNITS):
+    # {coord: 1D array}. Coords absent on the beam object are omitted.
+    scatter: Optional[dict[str, np.ndarray]] = None
+    # Full phase-space distribution for the programmatic API (opt-in). Shape:
+    # {"n": int, "units": {coord: unit}, "coords": {coord: np.ndarray}}.
+    distribution: Optional[dict] = None
     twiss_s: Optional[np.ndarray] = None
     twiss_a_beta: Optional[np.ndarray] = None
     twiss_b_beta: Optional[np.ndarray] = None
@@ -97,31 +92,29 @@ class ModelImageSource:
         model_name: str,
         max_scatter_points: int = 3000,
         reset_values: Optional[dict[str, object]] = None,
-        twiss_s_pv: str = "s",
-        twiss_a_beta_pv: str = "x.beta",
-        twiss_b_beta_pv: str = "y.beta",
     ):
         self.model_name = model_name
-        self.model = MODELS.get(model_name)()
+        self.spec: ModelSpec = get_spec(model_name)
+        # LCLS_LATTICE must be set before the model (Bmad) is built.
+        self.lattice_path = resolve_lcls_lattice_path()
+        os.environ["LCLS_LATTICE"] = self.lattice_path
+        self.model = self.spec.make_model()
         self.max_scatter_points = max_scatter_points
         self.reset_values = reset_values or {}
-        self.twiss_s_pv = twiss_s_pv
-        self.twiss_a_beta_pv = twiss_a_beta_pv
-        self.twiss_b_beta_pv = twiss_b_beta_pv
+        self.screens = self.spec.screens
+        self.baseline = dict(self.spec.baseline)
+        self.twiss_s_pv = self.spec.twiss_s_pv
+        self.twiss_a_beta_pv = self.spec.twiss_a_beta_pv
+        self.twiss_b_beta_pv = self.spec.twiss_b_beta_pv
         self._writable_variable_names = {
             name
             for name, variable in self.model.supported_variables.items()
             if not getattr(variable, "read_only", False)
-            and name not in EXCLUDED_EPICS_PVS
+            and name not in self.spec.excluded_pvs
         }
-        self.reset_values = reset_values or {}
-        self.lattice_path = resolve_lcls_lattice_path()
-        os.environ["LCLS_LATTICE"] = self.lattice_path
 
     @classmethod
     def create_default(cls):
-        lattice_path = resolve_lcls_lattice_path()
-        os.environ["LCLS_LATTICE"] = lattice_path
         return cls(model_name="cu_hxr_staged", reset_values={})
 
     def reset(self) -> None:
@@ -145,12 +138,17 @@ class ModelImageSource:
         frame_index: int = 0,
         image_caption: str = "",
         title_suffix: str = "",
+        include_distribution: bool = False,
+        max_particles: Optional[int] = None,
     ) -> BeamFrame:
-        screen = SCREEN_CONFIGS[screen_key]
-        if control_updates:
-            writable_updates = self._filter_writable_updates(control_updates)
-            if writable_updates:
-                self.model.set(writable_updates)
+        screen = self.screens[screen_key]
+        # Baseline-merge: overlay the request on the known baseline so evaluate is
+        # history-independent on any (pooled) instance — a missing key falls back to
+        # the design default, never a previous request's value.
+        effective = {**self.baseline, **(control_updates or {})}
+        writable_updates = self._filter_writable_updates(effective)
+        if writable_updates:
+            self.model.set(writable_updates)
 
         pvs: list[str] = [
             screen.particle_source,
@@ -160,7 +158,7 @@ class ModelImageSource:
         ]
         if screen.image_pv:
             pvs.insert(0, screen.image_pv)
-        if screen.scalar_mode == "pvs" and self.model_name == "cu_hxr_staged":
+        if screen.scalar_mode == "pvs":
             pvs.extend(
                 [
                     screen.xrms_pv,
@@ -173,11 +171,14 @@ class ModelImageSource:
 
         result = self.model.get(pvs)
         beam = result.get(screen.particle_source)
-        image = result.get(screen.image_pv) if screen.image_pv else None
+        image = _apply_screen_psf(result.get(screen.image_pv)) if screen.image_pv else None
         xrms_um, yrms_um, sigma_z_um, emit_x_um, emit_y_um = self._extract_scalars(
             screen, result, beam
         )
-        beam_x_um, beam_px_evc = self._extract_scatter(beam)
+        scatter = self._extract_scatter(beam)
+        distribution = (
+            self._extract_distribution(beam, max_particles) if include_distribution else None
+        )
 
         twiss_s = result.get(self.twiss_s_pv)
         twiss_a_beta = result.get(self.twiss_a_beta_pv)
@@ -195,8 +196,8 @@ class ModelImageSource:
             image=image,
             image_message=screen.image_message if image is None else "",
             image_caption=image_caption,
-            beam_x_um=beam_x_um,
-            beam_px_evc=beam_px_evc,
+            scatter=scatter,
+            distribution=distribution,
             twiss_s=None if twiss_s is None else np.asarray(twiss_s, dtype=float),
             twiss_a_beta=None if twiss_a_beta is None else np.asarray(twiss_a_beta, dtype=float),
             twiss_b_beta=None if twiss_b_beta is None else np.asarray(twiss_b_beta, dtype=float),
@@ -206,7 +207,7 @@ class ModelImageSource:
         )
 
     def _extract_scalars(self, screen, result: Mapping[str, object], beam) -> tuple[float, float, float, float, float]:
-        if screen.scalar_mode == "pvs" and self.model_name == "cu_hxr_staged":
+        if screen.scalar_mode == "pvs":
             return (
                 float(result[screen.xrms_pv]),
                 float(result[screen.yrms_pv]),
@@ -227,14 +228,53 @@ class ModelImageSource:
             float(beam["norm_emit_y"]) * 1e6,
         )
 
-    def _extract_scatter(self, beam) -> tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def _extract_scatter(self, beam) -> Optional[dict[str, np.ndarray]]:
         if beam is None:
-            return (None, None)
-        x = np.asarray(beam["x"], dtype=float)
-        px = np.asarray(beam["px"], dtype=float)
-        if len(x) > self.max_scatter_points:
-            indices = np.linspace(0, len(x) - 1, self.max_scatter_points, dtype=int)
-            x = x[indices]
-            px = px[indices]
-        return (x * 1e6, px)
+            return None
+        coords: dict[str, np.ndarray] = {}
+        for key in SCATTER_COORDS:
+            try:
+                coords[key] = np.asarray(beam[key], dtype=float)
+            except Exception:  # coordinate not present on this beam object
+                continue
+        if not coords:
+            return None
+        n = len(next(iter(coords.values())))
+        if n > self.max_scatter_points:
+            indices = np.linspace(0, n - 1, self.max_scatter_points, dtype=int)
+            coords = {k: v[indices] for k, v in coords.items()}
+        # Positions: metres -> µm for display; momenta already in eV/c.
+        for key in _SCATTER_POSITION_COORDS:
+            if key in coords:
+                coords[key] = coords[key] * 1e6
+        return coords
+
+    # Keys/units for the phase-space distribution surfaced by the v1 API. Verified
+    # against beamphysics.ParticleGroup (the object the model returns): positions in
+    # metres, momenta in eV/c, weight (charge) in Coulombs. Missing keys are skipped.
+    _DIST_COORDS = ("x", "px", "y", "py", "z", "pz")
+    _DIST_UNITS = {
+        "x": "m", "y": "m", "z": "m",
+        "px": "eV/c", "py": "eV/c", "pz": "eV/c",
+        "weight": "C",
+    }
+
+    def _extract_distribution(self, beam, max_particles: Optional[int]) -> Optional[dict]:
+        if beam is None:
+            return None
+        coords: dict[str, np.ndarray] = {}
+        for key in (*self._DIST_COORDS, "weight"):
+            try:
+                coords[key] = np.asarray(beam[key], dtype=float)
+            except Exception:  # coordinate not present on this beam object
+                continue
+        if not coords:
+            return None
+        n = len(next(iter(coords.values())))
+        if max_particles and n > max_particles:
+            indices = np.linspace(0, n - 1, max_particles, dtype=int)
+            coords = {k: v[indices] for k, v in coords.items()}
+            n = int(max_particles)
+        units = {k: self._DIST_UNITS.get(k, "") for k in coords}
+        return {"n": int(n), "units": units, "coords": coords}
     

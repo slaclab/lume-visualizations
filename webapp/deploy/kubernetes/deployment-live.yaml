@@ -1,0 +1,72 @@
+# Live producer (N1). The ONE EPICS reader: runs the broadcast hub (one loop per
+# active screen -> SSE fan-out) and serves /api/live/stream + /api/machine-snapshot.
+#
+# replicas MUST stay 1. This is a singleton on purpose: if it ran on N replicas each
+# would independently read EPICS and evaluate, costing N x the model work and showing
+# viewers divergent frames. One producer, fan out to all browsers via SSE.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lume-monitor-live
+  namespace: lume-visualizations
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # singleton: don't run two EPICS readers during a rollout
+  selector:
+    matchLabels:
+      app: lume-monitor-live
+  template:
+    metadata:
+      labels:
+        app: lume-monitor-live
+    spec:
+      containers:
+        - name: lume-monitor
+          image: ghcr.io/slaclab/lume-monitor
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: LUME_ROLE
+              value: "live"
+            - name: LCLS_LATTICE
+              value: /opt/lcls-lattice
+            - name: KMP_DUPLICATE_LIB_OK
+              value: "TRUE"
+            # Small pool: the hub evaluates once per screen per tick regardless of
+            # viewer count, so a couple of workers cover several concurrent screens.
+            - name: LUME_POOL_WORKERS
+              value: "2"
+            - name: LUME_MAX_INFLIGHT
+              value: "8"
+            - name: LUME_WORKER_THREADS
+              value: "2"
+          envFrom:
+            # Read-only EPICS Channel Access config for the live view.
+            - configMapRef:
+                name: lume-epics-config
+          resources:
+            requests:
+              cpu: "2"
+              memory: 5Gi
+            limits:
+              cpu: "4"
+              memory: 7Gi
+          startupProbe:
+            httpGet:
+              path: /api/config
+              port: 8000
+            periodSeconds: 5
+            failureThreshold: 48
+          readinessProbe:
+            httpGet:
+              path: /api/config
+              port: 8000
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/config
+              port: 8000
+            periodSeconds: 30
