@@ -40,19 +40,24 @@ export function InteractiveTab({
   const [tsPoint, setTsPoint] = useState<(Scalars & { x: number; key: string }) | null>(null)
   const [status, setStatus] = useState('')
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const reqSeqRef = useRef(0)
   const counterRef = useRef(0)
   const scanRef = useRef(false)
 
   const runEval = useCallback(
     async (inputs: Record<string, number>, scr: string) => {
+      // Sequence each request; only the newest result is applied so a slower
+      // in-flight eval can't overwrite the frame for a later slider position.
+      const seq = ++reqSeqRef.current
       try {
         const f = await evaluate(scr, inputs)
+        if (seq !== reqSeqRef.current) return // superseded by a newer request
         setFrame(f)
         const x = counterRef.current++
         setTsPoint({ ...f.scalars, x, key: `${x}` })
         setStatus(`Eval #${x} for ${scr}`)
       } catch (e) {
+        if (seq !== reqSeqRef.current) return
         setStatus(`Error: ${(e as Error).message}`)
       }
     },
@@ -71,12 +76,18 @@ export function InteractiveTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleSlider = useCallback(
+  // Live value update while dragging — updates the slider/label only, no eval.
+  const handleSlider = useCallback((id: string, value: number) => {
+    setValues((prev) => ({ ...prev, [id]: value }))
+  }, [])
+
+  // Commit on release (pointer up / key up / reset): run exactly one eval for the
+  // final value. Avoids the eval-storm of evaluating every intermediate drag value.
+  const handleCommit = useCallback(
     (id: string, value: number) => {
       setValues((prev) => {
         const next = { ...prev, [id]: value }
-        clearTimeout(debounceRef.current)
-        debounceRef.current = setTimeout(() => void runEval(next, screen), 300)
+        void runEval(next, screen)
         return next
       })
     },
@@ -141,7 +152,13 @@ export function InteractiveTab({
         </Controls>
       }
       sliders={config.inputs.map((cfg) => (
-        <SliderControl key={cfg.id} config={cfg} value={values[cfg.id]} onChange={handleSlider} />
+        <SliderControl
+          key={cfg.id}
+          config={cfg}
+          value={values[cfg.id]}
+          onChange={handleSlider}
+          onCommit={handleCommit}
+        />
       ))}
     >
       <DashboardPanels
