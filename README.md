@@ -1,23 +1,23 @@
 # lume-visualizations
 
-Live-stream monitor for the SLAC `virtual_accelerator` staged model (LCLS CU
-injector / HXR line).
+Live-stream monitor for the SLAC `virtual_accelerator` models (LCLS CU
+injector / HXR line for now).
 
-- **The app** lives in [`webapp/`](webapp/README.md) — a React/Vite + FastAPI
+- **The app** lives in [`webapp/`](webapp/README.md). It's a React/Vite + FastAPI
   single-URL service (Live + Interactive tabs). Run/build/deploy instructions are in
   `webapp/README.md`.
 - **This package (`lume_visualizations/`)** is the model/config/EPICS layer the webapp
   imports:
-  - `beam_monitor.py` — `ModelImageSource.snapshot()` → `BeamFrame` (the evaluate core).
-  - `registry.py` — `ModelSpec` / `MODEL_REGISTRY` (per-model screens, inputs, baseline).
-  - `config.py` — screen + input PV definitions.
-  - `epics_controls.py` — read-only EPICS input reader.
-  - `fake_epics_ioc.py` — synthetic IOC for local testing without the real machine.
+  - `beam_monitor.py`: `ModelImageSource.snapshot()` → `BeamFrame` (the evaluate core).
+  - `registry.py`: `ModelSpec` / `MODEL_REGISTRY` (per-model screens, inputs, baseline).
+  - `config.py`: screen + input PV definitions.
+  - `epics_controls.py`: read-only EPICS input reader.
+  - `fake_epics_ioc.py`: synthetic IOC for local testing without the real machine.
 
 ## Install (working on the model layer)
 
-The heavy model (`virtual_accelerator` + torch + Bmad) is installed separately — see
-`webapp/scripts/setup-dev-env.sh` for the pinned env used to run the real model. For
+The heavy model (`virtual_accelerator` + torch + Bmad) is installed separately (see
+`webapp/scripts/setup-dev-env.sh` for the pinned env used to run the real model). For
 just this package:
 
 ```bash
@@ -25,12 +25,12 @@ export LCLS_LATTICE=/path/to/lcls-lattice
 pip install -e .
 ```
 
-`caproto` (fake IOC), `numpy`, and `pyepics` come with it.
+`caproto` (fake IOC), `numpy`, and `pyepics` are installed with it.
 
 ## Fake EPICS IOC
 
 Serves the staged-model input PV names with smooth synthetic motion, so the webapp's
-**Live** tab can be exercised without the real machine:
+Live tab can be run without the real machine:
 
 ```bash
 lume-fake-epics-ioc --list-pvs
