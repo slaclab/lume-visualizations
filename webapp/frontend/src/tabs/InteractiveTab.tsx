@@ -18,7 +18,6 @@ const ALL_VISIBLE: Visibility = {
   beta_y: true,
 }
 
-const SCAN_PV = 'QUAD:IN20:525:BCTRL'
 const SCAN_STEPS = 20
 
 export function InteractiveTab({
@@ -104,23 +103,25 @@ export function InteractiveTab({
   }, [runEval, screen])
 
   const scanQuad = useCallback(async () => {
-    const cfg = config.inputs.find((i) => i.id === SCAN_PV)
+    // Per-model, from ModelSpec.scan_pv. Never hard-code it: FACET uses other magnets.
+    const scanPv = config.scan_pv
+    const cfg = config.inputs.find((i) => i.id === scanPv)
     if (!cfg) {
-      setStatus(`${SCAN_PV} not available`)
+      setStatus(`${scanPv} not available`)
       return
     }
     scanRef.current = true
     for (let i = 0; i < SCAN_STEPS; i++) {
       if (!scanRef.current) break
       const v = cfg.min + ((cfg.max - cfg.min) * i) / (SCAN_STEPS - 1)
-      const next = { ...values, [SCAN_PV]: v }
+      const next = { ...values, [scanPv]: v }
       setValues(next)
-      setStatus(`Scan ${SCAN_PV}: step ${i + 1}/${SCAN_STEPS} = ${v.toFixed(3)}`)
+      setStatus(`Scan ${scanPv}: step ${i + 1}/${SCAN_STEPS} = ${v.toFixed(3)}`)
       await runEval(next, screen)
       await new Promise((r) => setTimeout(r, 700))
     }
     scanRef.current = false
-  }, [config.inputs, values, runEval, screen])
+  }, [config.inputs, config.scan_pv, values, runEval, screen])
 
   useEffect(() => () => {
     scanRef.current = false
@@ -158,6 +159,7 @@ export function InteractiveTab({
     >
       <DashboardPanels
         frame={frame}
+        scalars={config.scalars}
         scaleMode={scaleMode}
         visibility={visibility}
         tsPoint={tsPoint}

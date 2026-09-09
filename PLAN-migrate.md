@@ -14,7 +14,7 @@ same output shape, so one UI and one adapter contract cover both.
 (`ad-accel-online-ml`, namespace `lume-visualizations`, image `lume-monitor:n6`). Live topology:
 
 - `lume-monitor-eval` (**2 replicas**, EPICS-free): serves the SPA, `/api/config`,
-  `/api/evaluate`, `/api/v1/evaluate`, `/metrics`.
+  `/api/v1/evaluate` (the one evaluate endpoint, UI and external), `/metrics`.
 - `lume-monitor-live` (**singleton**): the only EPICS reader; serves
   `/api/live/stream` (broadcast hub) + `/api/machine-snapshot`.
 - One Ingress routes `/api/live/*` + `/api/machine-snapshot` → live, everything else
@@ -63,7 +63,7 @@ correctness is the **live producer**; everything else scales fine merged.
                          |                       |
               LIVE PRODUCER (replicas: 1)   EVAL POOL (autoscaled: N replicas)
               own EPICS read loop           serves SPA + /api/config
-              own small model pool (1-2)      + /api/evaluate (UI)
+              own small model pool (1-2)      + /api/v1/evaluate (all callers)
               -> evaluate -> SSE fan-out      + /api/v1/evaluate (external)
               the ONE EPICS reader          each pod: ModelPool K workers, EPICS-free
                                             stateless -> any pod serves any request
@@ -73,7 +73,7 @@ correctness is the **live producer**; everything else scales fine merged.
 ### Eval pool (autoscaled) — the workhorse
 
 - One Deployment, N replicas behind one Service. Stateless.
-- Serves the SPA (static files), `/api/config`, `/api/evaluate` (UI), and
+- Serves the SPA (static files), `/api/config`, `/api/v1/evaluate` (UI + external), and
   `/api/v1/evaluate` (external API).
 - Each pod runs the K-worker `ModelPool`. **No EPICS** — this deployment is EPICS-free.
 - Scales by adding replicas. Any pod serves any request; the LB spreads them.
@@ -93,7 +93,7 @@ correctness is the **live producer**; everything else scales fine merged.
 ### Ingress routing
 
 - `/…/api/live/*` and `/…/api/machine-snapshot` → live-producer Service.
-- everything else (SPA, `/api/config`, `/api/evaluate`, `/api/v1/*`) → eval-pool Service.
+- everything else (SPA, `/api/config`, `/api/v1/*`) → eval-pool Service.
 - Source-range whitelist stays as the exposure gate (auth deferred — see below). SSE
   still needs the long read timeout + buffering off already set on the Ingress.
 

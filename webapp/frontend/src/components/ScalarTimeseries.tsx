@@ -19,6 +19,12 @@ interface Props {
 // [xs, xrms, yrms, sigmaz, emx, emy]
 type Cols = [number[], number[], number[], number[], number[], number[]]
 
+// These five arrays are positional and index-aligned with each other, with the uPlot
+// `series` list below, and with the Cols tuple. DashboardPanels takes its readout labels
+// from /api/config instead, but this chart is deliberately left hard-coded: the uPlot
+// series are positional and VIS_KEYS uses the Visibility naming scheme (sigma_x) rather
+// than the scalar ids (xrms_um), so making it data-driven is a real refactor of the chart
+// rather than a lookup swap. Keep in step with SCALAR_INFO in webapp/backend/schemas.py.
 const COLORS = ['#58a6ff', '#f78166', '#e3b341', '#3fb950', '#d2a8ff']
 const LABELS = ['σx', 'σy', 'σz', 'εx', 'εy']
 const DASHED = [false, false, false, true, true]

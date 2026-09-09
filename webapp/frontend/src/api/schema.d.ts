@@ -21,23 +21,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/evaluate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Evaluate */
-        post: operations["evaluate_api_evaluate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/live/stream": {
         parameters: {
             query?: never;
@@ -83,17 +66,26 @@ export interface paths {
         put?: never;
         /**
          * Run the model on a set of inputs and return beam output
-         * @description Stateless model evaluation for programmatic clients (notebooks, GUIs).
+         * @description Stateless model evaluation. The one evaluate endpoint for every caller.
+         *
+         *     Used by this app's own web UI, by any other UI, and by programmatic clients such as
+         *     notebooks and emittance GUIs. There is deliberately no separate UI-private endpoint.
          *
          *     `inputs` is a map of PV name -> engineering-unit control value, overlaid on the
-         *     model's design baseline — send only the knobs you want to change (`{}` = design
-         *     machine). `GET /api/config` lists the writable inputs with their ranges/defaults.
+         *     model's design baseline, so send only the knobs you want to change (`{}` is the
+         *     design machine). `GET /api/config` lists the writable inputs with their ranges and
+         *     defaults.
          *
-         *     Scalars are always returned. Set `include_image` / `include_distribution` /
-         *     `include_twiss` for the heavier outputs; `max_particles` subsamples the
-         *     distribution. Large arrays are base64-encoded little-endian float32 — decode with
-         *     e.g. `numpy.frombuffer(base64.b64decode(s), dtype='<f4')` (image is row-major,
-         *     reshaped to `image.shape`).
+         *     Scalars are always returned. Set `include_image`, `include_distribution` and
+         *     `include_twiss` for the heavier outputs, and `max_particles` to subsample the
+         *     distribution (it defaults to 3000, never the full beam). Large arrays are
+         *     base64-encoded little-endian float32, so decode with e.g.
+         *     `numpy.frombuffer(base64.b64decode(s), dtype='<f4')`. The image is row-major,
+         *     reshaped to `image.shape`.
+         *
+         *     Particle positions are in µm and momenta in eV/c, matching the µm-based scalars.
+         *     Every response states its own units in `distribution.units`, so do not hard-code
+         *     them.
          */
         post: operations["evaluate_v1_api_v1_evaluate_post"];
         delete?: never;
@@ -134,22 +126,12 @@ export interface components {
             model: string;
             /** Scalars */
             scalars: components["schemas"]["ScalarInfo"][];
+            /** Scan Pv */
+            scan_pv: string;
             /** Screens */
             screens: components["schemas"]["ScreenInfo"][];
             /** Version */
             version: string;
-        };
-        /** EvaluateRequest */
-        EvaluateRequest: {
-            /**
-             * Inputs
-             * @default {}
-             */
-            inputs: {
-                [key: string]: number;
-            };
-            /** Screen */
-            screen: string;
         };
         /** EvaluateV1Request */
         EvaluateV1Request: {
@@ -186,26 +168,6 @@ export interface components {
             /** Frame Index */
             frame_index: number;
             image?: components["schemas"]["V1Image"] | null;
-            /** Model */
-            model: string;
-            scalars: components["schemas"]["Scalars"];
-            /** Screen */
-            screen: string;
-            /** Timestamp */
-            timestamp: number;
-            twiss?: components["schemas"]["V1Twiss"] | null;
-            /** Version */
-            version: string;
-        };
-        /** FrameResponse */
-        FrameResponse: {
-            /**
-             * Frame Index
-             * @default 0
-             */
-            frame_index: number;
-            /** Image B64 */
-            image_b64?: string | null;
             /**
              * Image Caption
              * @default
@@ -216,37 +178,18 @@ export interface components {
              * @default
              */
             image_message: string;
-            /** Image Shape */
-            image_shape?: number[] | null;
+            /** Model */
+            model: string;
             scalars: components["schemas"]["Scalars"];
-            /** Scatter B64 */
-            scatter_b64?: {
-                [key: string]: string;
-            } | null;
-            /** Scatter Units */
-            scatter_units?: {
-                [key: string]: string;
-            } | null;
-            /** Screen Key */
-            screen_key: string;
+            /** Screen */
+            screen: string;
             /** Screen Label */
             screen_label: string;
-            /**
-             * Timestamp
-             * @default 0
-             */
+            /** Timestamp */
             timestamp: number;
-            /**
-             * Title Suffix
-             * @default
-             */
-            title_suffix: string;
-            /** Twiss A Beta */
-            twiss_a_beta?: number[] | null;
-            /** Twiss B Beta */
-            twiss_b_beta?: number[] | null;
-            /** Twiss S */
-            twiss_s?: number[] | null;
+            twiss?: components["schemas"]["V1Twiss"] | null;
+            /** Version */
+            version: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -381,39 +324,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConfigResponse"];
-                };
-            };
-        };
-    };
-    evaluate_api_evaluate_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EvaluateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FrameResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

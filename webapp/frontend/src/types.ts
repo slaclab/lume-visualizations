@@ -12,7 +12,7 @@ export type ScalarInfo = S['ScalarInfo']
 export type ConfigResponse = S['ConfigResponse']
 export type Scalars = S['Scalars']
 export type SnapshotResponse = S['SnapshotResponse']
-export type EvaluateRequest = S['EvaluateRequest']
+export type EvaluateRequest = S['EvaluateV1Request']
 
 /** Decoded beam frame ready for rendering. UI-side shape, no backend counterpart. */
 export interface Frame {
@@ -24,15 +24,16 @@ export interface Frame {
   imageMessage: string
   imageCaption: string
   scalars: Scalars
-  /** Phase-space coordinates in display units, keyed by coord name (x, px, y, py, z, pz). */
+  /** Plottable phase-space coords from the response distribution, keyed by coord name
+   * (x, px, y, py, z, pz). `weight` is stripped in unpackFrame: it is a particle charge,
+   * not an axis. */
   scatter: Record<string, Float32Array>
-  /** Display unit for each scatter coord, e.g. { x: "µm", px: "eV/c" }. */
+  /** Unit for each coord as stated by the response, e.g. { x: "µm", px: "eV/c" }. */
   scatterUnits: Record<string, string>
   twissS: number[] | null
   twissABeta: number[] | null
   twissBBeta: number[] | null
   frameIndex: number
-  titleSuffix: string
   timestamp: number
 }
 

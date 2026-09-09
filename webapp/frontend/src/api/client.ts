@@ -8,6 +8,10 @@ import type { components } from './schema'
 
 const API_BASE = import.meta.env.VITE_API_URL || '.'
 
+/** Particles requested per evaluate. Enough for a dense scatter plot without making the
+ * payload dominate the frame. Matches the backend's own default cap. */
+const MAX_SCATTER_POINTS = 3000
+
 function decodeFloat32(b64: string | null): Float32Array | null {
   if (!b64) return null
   const bin = atob(b64)
@@ -15,42 +19,45 @@ function decodeFloat32(b64: string | null): Float32Array | null {
   return new Float32Array(bytes.buffer)
 }
 
-/** Wire shape returned by /api/evaluate and the SSE stream.
+/** Wire shape returned by /api/v1/evaluate and the SSE stream. One shape for both.
  *
- * Required<> because a response always carries every field, so the optional markers the
- * generator adds for defaulted and nullable fields would be a lie here. On the SSE path
- * that guarantee is not FastAPI's: the stream json.dumps the dict without validating it
- * against FrameResponse, so it rests on frame_to_wire() in webapp/backend/serialize.py
- * staying unconditional.
+ * Required<> because a response always carries every key, including the opt-in ones,
+ * which are null rather than absent when not requested. Without it the generator's
+ * optional markers would force null-checks that can never fire. On the SSE path this is
+ * not guaranteed by FastAPI: the stream json.dumps the dict without validating it, so it
+ * rests on frame_to_wire() in webapp/backend/serialize.py staying unconditional, which
+ * tests/test_wire_shape.py enforces across every screen.
  */
-type WireFrame = Required<components['schemas']['FrameResponse']>
+type WireFrame = Required<components['schemas']['EvaluateV1Response']>
 
 /** Payload of the SSE `error` event (webapp/backend/live_hub.py). Not described by OpenAPI. */
 interface LiveError {
   message: string
 }
 
+/** Particle charge. Present in the distribution for physics callers, but it is not a
+ * phase-space axis, so it must not reach the scatter plot's axis pickers. */
+const NON_AXIS_COORDS = new Set(['weight'])
+
 export function unpackFrame(p: WireFrame): Frame {
+  const coords = p.distribution?.coords ?? {}
+  const units = p.distribution?.units ?? {}
+  const axes = Object.keys(coords).filter((k) => !NON_AXIS_COORDS.has(k))
   return {
-    screenKey: p.screen_key,
+    screenKey: p.screen,
     screenLabel: p.screen_label,
-    image: decodeFloat32(p.image_b64),
-    imageRows: p.image_shape ? p.image_shape[0] : 0,
-    imageCols: p.image_shape ? p.image_shape[1] : 0,
+    image: decodeFloat32(p.image?.data_b64 ?? null),
+    imageRows: p.image ? p.image.shape[0] : 0,
+    imageCols: p.image ? p.image.shape[1] : 0,
     imageMessage: p.image_message,
     imageCaption: p.image_caption,
     scalars: p.scalars,
-    scatter: p.scatter_b64
-      ? Object.fromEntries(
-          Object.entries(p.scatter_b64).map(([k, v]) => [k, decodeFloat32(v)!]),
-        )
-      : {},
-    scatterUnits: p.scatter_units ?? {},
-    twissS: p.twiss_s,
-    twissABeta: p.twiss_a_beta,
-    twissBBeta: p.twiss_b_beta,
+    scatter: Object.fromEntries(axes.map((k) => [k, decodeFloat32(coords[k])!])),
+    scatterUnits: Object.fromEntries(axes.map((k) => [k, units[k] ?? ''])),
+    twissS: p.twiss?.s ?? null,
+    twissABeta: p.twiss?.beta_x ?? null,
+    twissBBeta: p.twiss?.beta_y ?? null,
     frameIndex: p.frame_index,
-    titleSuffix: p.title_suffix,
     timestamp: p.timestamp,
   }
 }
@@ -65,8 +72,17 @@ export async function evaluate(
   screen: string,
   inputs: Record<string, number>,
 ): Promise<Frame> {
-  const body: EvaluateRequest = { screen, inputs }
-  const res = await fetch(`${API_BASE}/api/evaluate`, {
+  // The dashboard renders all four panels, so it opts into every output. This is the
+  // same endpoint external callers use, they just ask for less.
+  const body: EvaluateRequest = {
+    screen,
+    inputs,
+    include_image: true,
+    include_distribution: true,
+    include_twiss: true,
+    max_particles: MAX_SCATTER_POINTS,
+  }
+  const res = await fetch(`${API_BASE}/api/v1/evaluate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
