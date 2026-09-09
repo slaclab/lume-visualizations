@@ -64,17 +64,12 @@ export function InteractiveTab({
     [],
   )
 
-  // Initial + screen-change evaluate.
+  // Initial + screen-change evaluate. This already covers mount, so do not add a
+  // second mount-only effect: it submits a duplicate eval to the pool on every load.
   useEffect(() => {
     void runEval(values, screen)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen])
-
-  // Evaluate once on mount.
-  useEffect(() => {
-    void runEval(values, screen)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   // Live value update while dragging — updates the slider/label only, no eval.
   const handleSlider = useCallback((id: string, value: number) => {
