@@ -185,7 +185,15 @@ is ported to the new VA API) or the next rebuild drifts again.
   the eval-storm / out-of-order risk.
 
 **Later (only when needed):**
+- **clean up dockerfile to fix facet/lattice updates breaking**
 - ** make missing trailing / in url redirect to avoid bad links**
+- **Keep the live stream running across tab switches.** Today switching from Live to
+  Interactive tears down the SSE connection and loses the timeseries/plot history;
+  returning to Live reconnects from scratch. Lift the SSE subscription + frame buffer
+  above the tab components (app-level state/context) so the stream stays connected and
+  the plots stay populated when the Live tab isn't mounted. Frontend-only — the singleton
+  live producer already runs continuously, so nothing changes server-side. Consider a
+  cap on the retained buffer so a long-backgrounded stream doesn't grow unbounded.
 - **LB strategy.** After a load test with realistic inputs, if evaluate latency is
   skewed, switch the eval Service to least-request routing (nginx/Envoy). A pull-based
   work queue only if that still isn't enough.
@@ -213,13 +221,6 @@ is ported to the new VA API) or the next rebuild drifts again.
   `sympy` (74 MB) are imported server-side or just transitive pytao/lume deps. torch
   (~750 MB) is stuck unless the surrogate can run lighter. Measure size + cold-start
   before/after. (`--check` lint of the current Dockerfile is clean; full build succeeds.)
-- **Keep the live stream running across tab switches.** Today switching from Live to
-  Interactive tears down the SSE connection and loses the timeseries/plot history;
-  returning to Live reconnects from scratch. Lift the SSE subscription + frame buffer
-  above the tab components (app-level state/context) so the stream stays connected and
-  the plots stay populated when the Live tab isn't mounted. Frontend-only — the singleton
-  live producer already runs continuously, so nothing changes server-side. Consider a
-  cap on the retained buffer so a long-backgrounded stream doesn't grow unbounded.
 - **Reduce eval latency `L` (prod-measured ~2.5s, 2026-08-24 — the real UX ceiling; an
   earlier load test read ~5s on an older image).** Scaling only adds more concurrent
   ~2.5s-evals; it doesn't make them faster. In priority order:
