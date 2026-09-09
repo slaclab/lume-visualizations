@@ -69,6 +69,7 @@ export function LiveTab({
     >
       <DashboardPanels
         frame={frame}
+        scalars={config.scalars}
         scaleMode={scaleMode}
         visibility={visibility}
         tsPoint={tsPoint}

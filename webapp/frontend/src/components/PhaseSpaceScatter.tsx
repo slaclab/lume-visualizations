@@ -8,8 +8,11 @@ interface Props {
   screenLabel: string
 }
 
-const COORDS = ['x', 'px', 'y', 'py', 'z', 'pz'] as const
 const PAD = 42
+// Fallback ordering only. The real coord list comes from the response, so a model that
+// exposes different coords needs no change here. `weight` is already stripped upstream in
+// unpackFrame, since it is a particle charge rather than a phase-space axis.
+const COORD_ORDER = ['x', 'px', 'y', 'py', 'z', 'pz']
 
 function range(a: Float32Array): [number, number] {
   let lo = Infinity
@@ -35,6 +38,14 @@ export function PhaseSpaceScatter({ scatter, units, screenLabel }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [xCoord, setXCoord] = useState<string>('x')
   const [yCoord, setYCoord] = useState<string>('px')
+
+  // Axis options come from the frame itself. Sorted into the conventional order where
+  // recognised, so the picker does not reshuffle as coords arrive.
+  const coords = Object.keys(scatter).sort((a, b) => {
+    const ia = COORD_ORDER.indexOf(a)
+    const ib = COORD_ORDER.indexOf(b)
+    return (ia < 0 ? COORD_ORDER.length : ia) - (ib < 0 ? COORD_ORDER.length : ib)
+  })
 
   const W = Math.max(1, size.width)
   const H = Math.max(1, size.height)
@@ -100,7 +111,7 @@ export function PhaseSpaceScatter({ scatter, units, screenLabel }: Props) {
           <label>
             Y
             <select value={yCoord} onChange={(e) => setYCoord(e.target.value)}>
-              {COORDS.map((c) => (
+              {coords.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
@@ -110,7 +121,7 @@ export function PhaseSpaceScatter({ scatter, units, screenLabel }: Props) {
           <label>
             X
             <select value={xCoord} onChange={(e) => setXCoord(e.target.value)}>
-              {COORDS.map((c) => (
+              {coords.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>

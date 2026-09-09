@@ -3,10 +3,13 @@ import { PhaseSpaceScatter } from './PhaseSpaceScatter'
 import { ScalarTimeseries } from './ScalarTimeseries'
 import { TwissPlot } from './TwissPlot'
 import { ScalarDisplay } from './ScalarDisplay'
-import type { Frame, ScaleMode, Scalars, Visibility } from '../types'
+import type { Frame, ScalarInfo, ScaleMode, Scalars, Visibility } from '../types'
 
 interface Props {
   frame: Frame | null
+  /** Readout ids, labels and units, straight from GET /api/config. The backend owns
+   * these, so they are not duplicated here. */
+  scalars: ScalarInfo[]
   scaleMode: ScaleMode
   visibility: Visibility
   tsPoint: (Scalars & { x: number; key: string }) | null
@@ -15,16 +18,9 @@ interface Props {
   timeAxis?: boolean
 }
 
-const READOUTS: { id: keyof Scalars; label: string; unit: string }[] = [
-  { id: 'xrms_um', label: 'σx', unit: 'µm' },
-  { id: 'yrms_um', label: 'σy', unit: 'µm' },
-  { id: 'sigma_z_um', label: 'σz', unit: 'µm' },
-  { id: 'norm_emit_x_um_rad', label: 'εx', unit: 'µm·rad' },
-  { id: 'norm_emit_y_um_rad', label: 'εy', unit: 'µm·rad' },
-]
-
 export function DashboardPanels({
   frame,
+  scalars,
   scaleMode,
   visibility,
   tsPoint,
@@ -36,12 +32,16 @@ export function DashboardPanels({
   return (
     <div className="dashboard">
       <div className="scalar-row">
-        {READOUTS.map((r) => (
+        {scalars.map((s) => (
           <ScalarDisplay
-            key={r.id}
-            label={r.label}
-            value={frame ? frame.scalars[r.id] : 0}
-            unit={r.unit}
+            key={s.id}
+            label={s.label}
+            // The cast is the one seam left: the generated ScalarInfo.id is a plain
+            // string, while Scalars has known keys. The backend owns both ends (these
+            // ids come from SCALAR_INFO in schemas.py, the same module that defines
+            // Scalars), so they cannot disagree without the contract test noticing.
+            value={frame ? frame.scalars[s.id as keyof Scalars] : 0}
+            unit={s.unit}
           />
         ))}
       </div>
