@@ -1,4 +1,10 @@
-import type { ConfigResponse, Frame } from '../types'
+import type {
+  ConfigResponse,
+  EvaluateRequest,
+  Frame,
+  SnapshotResponse,
+} from '../types'
+import type { components } from './schema'
 
 const API_BASE = import.meta.env.VITE_API_URL || '.'
 
@@ -9,23 +15,19 @@ function decodeFloat32(b64: string | null): Float32Array | null {
   return new Float32Array(bytes.buffer)
 }
 
-/** Wire shape returned by /api/evaluate and the SSE stream. */
-interface WireFrame {
-  screen_key: string
-  screen_label: string
-  image_b64: string | null
-  image_shape: [number, number] | null
-  image_message: string
-  image_caption: string
-  scalars: Frame['scalars']
-  scatter_b64: Record<string, string> | null
-  scatter_units: Record<string, string> | null
-  twiss_s: number[] | null
-  twiss_a_beta: number[] | null
-  twiss_b_beta: number[] | null
-  frame_index: number
-  title_suffix: string
-  timestamp: number
+/** Wire shape returned by /api/evaluate and the SSE stream.
+ *
+ * Required<> because a response always carries every field, so the optional markers the
+ * generator adds for defaulted and nullable fields would be a lie here. On the SSE path
+ * that guarantee is not FastAPI's: the stream json.dumps the dict without validating it
+ * against FrameResponse, so it rests on frame_to_wire() in webapp/backend/serialize.py
+ * staying unconditional.
+ */
+type WireFrame = Required<components['schemas']['FrameResponse']>
+
+/** Payload of the SSE `error` event (webapp/backend/live_hub.py). Not described by OpenAPI. */
+interface LiveError {
+  message: string
 }
 
 export function unpackFrame(p: WireFrame): Frame {
@@ -63,10 +65,11 @@ export async function evaluate(
   screen: string,
   inputs: Record<string, number>,
 ): Promise<Frame> {
+  const body: EvaluateRequest = { screen, inputs }
   const res = await fetch(`${API_BASE}/api/evaluate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ screen, inputs }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`evaluate: ${res.status}`)
   return unpackFrame(await res.json())
@@ -75,7 +78,7 @@ export async function evaluate(
 export async function machineSnapshot(): Promise<Record<string, number>> {
   const res = await fetch(`${API_BASE}/api/machine-snapshot`)
   if (!res.ok) throw new Error(`machine-snapshot: ${res.status}`)
-  const data = await res.json()
+  const data: SnapshotResponse = await res.json()
   return data.inputs
 }
 
@@ -94,7 +97,7 @@ export function subscribeLive(
     const data = (ev as MessageEvent).data
     if (data && onError) {
       try {
-        onError(JSON.parse(data).message)
+        onError((JSON.parse(data) as LiveError).message)
       } catch {
         onError('stream error')
       }
